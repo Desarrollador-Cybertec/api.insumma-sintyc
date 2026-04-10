@@ -10,9 +10,13 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-$canReadSettings = Schema::hasTable('system_settings');
-if ($canReadSettings) {
-    SystemSetting::preload();
+try {
+    $canReadSettings = Schema::hasTable('system_settings');
+    if ($canReadSettings) {
+        SystemSetting::preload();
+    }
+} catch (\Throwable $e) {
+    $canReadSettings = false;
 }
 
 Schedule::command('tasks:detect-overdue')

@@ -4,7 +4,7 @@
 
 {!! nl2br(e($body)) !!}
 
-<x-mail::button :url="config('app.frontend_url', 'https://app.cyberteconline.com')">
+<x-mail::button :url="config('app.frontend_url', 'https://app.insumma.cyberteconline.com')">
 Ver en la plataforma
 </x-mail::button>
 

@@ -8,7 +8,7 @@ class UpdateAreaRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->isSuperAdmin();
+        return $this->user()->isAdminLevel();
     }
 
     public function rules(): array

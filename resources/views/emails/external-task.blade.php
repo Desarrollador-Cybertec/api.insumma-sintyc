@@ -10,7 +10,7 @@ Desde S!NTyC, te informamos que necesitamos que nos ayudes con una tarea:
 {{ $task->description }}
 @endif
 
-Para nosotros es de prioridad **{{ $task->priority->value }}**, y necesitamos que nos ayudes antes del **{{ $task->due_date?->format('d/m/Y') ?? 'plazo acordado' }}**.
+Para nosotros es de prioridad **{{ $task->priority->label() }}**, y necesitamos que nos ayudes antes del **{{ $task->due_date?->format('d/m/Y') ?? 'plazo acordado' }}**.
 
 Te lo agradecemos,
 {{ $task->creator?->name ?? 'El equipo' }},

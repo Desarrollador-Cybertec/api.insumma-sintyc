@@ -130,6 +130,9 @@ class UserController extends Controller
         if ($isReactivating) {
             // Solo reportar cuando se activa — no al desactivar
             app(LicenseService::class)->reportUserActive();
+        } else {
+            // Reportar -1 al desactivar para mantener el conteo sincronizado
+            app(LicenseService::class)->reportUserDeactivated();
         }
 
         return new UserResource($user->fresh(['role', 'activeAreas']));

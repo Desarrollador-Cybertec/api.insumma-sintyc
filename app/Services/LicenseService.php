@@ -102,17 +102,58 @@ class LicenseService
      */
     public function reportUserActive(): void
     {
+        $this->reportUsageDelta(1);
+    }
+
+    /**
+     * Reportar -1 al Management System cuando un usuario es desactivado.
+     * Necesario para mantener el conteo sincronizado con la realidad.
+     */
+    public function reportUserDeactivated(): void
+    {
+        $this->reportUsageDelta(-1);
+    }
+
+    /**
+     * Consultar el uso actual en el Management System sin lanzar excepciones.
+     * Devuelve null si el sistema no responde.
+     */
+    public function getCurrentUsage(): ?array
+    {
+        try {
+            $response = Http::withHeaders([
+                'X-API-Key' => $this->apiKey(),
+            ])->timeout(10)->post($this->baseUrl() . '/api/internal/authorize', [
+                'action'   => 'create_user',
+                'quantity' => 0,
+            ]);
+
+            return $response->successful() ? $response->json() : null;
+        } catch (\Throwable $e) {
+            Log::warning('Could not fetch current usage from MS', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * Enviar un delta de corrección al Management System.
+     * Puede ser positivo o negativo.
+     */
+    public function reportUsageDelta(int $delta): void
+    {
         $response = Http::withHeaders([
             'X-API-Key' => $this->apiKey(),
         ])->timeout(10)->post($this->baseUrl() . '/api/internal/usage', [
             'metric' => 'user_active',
-            'value'  => 1,
+            'value'  => $delta,
         ]);
 
+        $sign = $delta >= 0 ? "+{$delta}" : (string) $delta;
+
         if ($response->successful()) {
-            Log::info('Usage reported: user_active +1');
+            Log::info("Usage reported: user_active {$sign}");
         } else {
-            Log::error('Usage report failed', ['status' => $response->status()]);
+            Log::error('Usage report failed', ['status' => $response->status(), 'delta' => $delta]);
         }
     }
 }

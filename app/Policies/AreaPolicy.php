@@ -32,7 +32,11 @@ class AreaPolicy
 
     public function update(User $user, Area $area): bool
     {
-        return $user->isAdminLevel();
+        if ($user->isAdminLevel()) {
+            return true;
+        }
+
+        return $user->isGerente();
     }
 
     public function delete(User $user, Area $area): bool

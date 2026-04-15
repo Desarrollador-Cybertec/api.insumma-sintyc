@@ -48,6 +48,39 @@ class TaskCompletionService
         });
     }
 
+    public function complete(Task $task, User $user, string $note): Task
+    {
+        if ($task->status !== TaskStatusEnum::IN_PROGRESS) {
+            throw ValidationException::withMessages([
+                'status' => ['La tarea debe estar en progreso para completarse directamente.'],
+            ]);
+        }
+
+        if ($task->requires_manager_approval) {
+            throw ValidationException::withMessages([
+                'requires_manager_approval' => ['Esta tarea requiere aprobación del encargado. Use "Enviar a revisión".'],
+            ]);
+        }
+
+        $this->validateRequirements($task);
+
+        return DB::transaction(function () use ($task, $user, $note) {
+            TaskComment::create([
+                'task_id' => $task->id,
+                'user_id' => $user->id,
+                'comment' => $note,
+                'type'    => CommentTypeEnum::COMPLETION_NOTE,
+            ]);
+
+            return $this->statusService->transition(
+                $task,
+                TaskStatusEnum::COMPLETED,
+                $user,
+                'Tarea completada directamente'
+            );
+        });
+    }
+
     public function approve(Task $task, User $approver, string $note): Task
     {
         return DB::transaction(function () use ($task, $approver, $note) {

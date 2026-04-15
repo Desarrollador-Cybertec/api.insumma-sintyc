@@ -223,6 +223,19 @@ class TaskController extends Controller
         return new TaskResource($task->load(['currentResponsible', 'area', 'latestUpdate']));
     }
 
+    public function complete(Request $request, Task $task, TaskCompletionService $service): TaskResource
+    {
+        $this->authorize('complete', $task);
+
+        $validated = $request->validate([
+            'comment' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $task = $service->complete($task, $request->user(), $validated['comment']);
+
+        return new TaskResource($task->load(['currentResponsible', 'area', 'latestUpdate']));
+    }
+
     public function approve(ApproveTaskRequest $request, Task $task, TaskCompletionService $service): TaskResource
     {
         $task = $service->approve($task, $request->user(), $request->note);

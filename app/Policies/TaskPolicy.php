@@ -163,6 +163,26 @@ class TaskPolicy
         return $task->external_email && $task->created_by === $user->id;
     }
 
+    public function complete(User $user, Task $task): bool
+    {
+        // Normal case: the current responsible completes the task
+        if ($task->current_responsible_user_id === $user->id) {
+            return true;
+        }
+
+        // Admin or area manager can complete a task directly
+        if ($user->isAdminLevel() && !$this->isForeignPersonalTask($user, $task)) {
+            return true;
+        }
+
+        if ($task->area_id && $user->isManagerOfArea($task->area_id)) {
+            return true;
+        }
+
+        // External task: the creator completes it on behalf of the external contact
+        return $task->external_email && $task->created_by === $user->id;
+    }
+
     public function approve(User $user, Task $task): bool
     {
         if ($user->isAdminLevel()) {

@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\TaskDueSoonNotification;
 use App\Notifications\TaskOverdueNotification;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class SendDueReminders extends Command
 {
@@ -63,6 +64,11 @@ class SendDueReminders extends Command
             if (!$user) continue;
 
             $daysOverdue = (int) $task->due_date->diffInDays(now());
+
+            // Notify on day 1 of being overdue, then every 3 days to avoid spam
+            $shouldNotify = $daysOverdue === 1 || ($daysOverdue > 1 && ($daysOverdue - 1) % 3 === 0);
+            if (!$shouldNotify) continue;
+
             $user->notify(new TaskOverdueNotification($task, $daysOverdue));
             $count++;
         }

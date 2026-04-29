@@ -82,8 +82,8 @@ class TaskCreationService
                 'requires_completion_notification' => $data['requires_completion_notification'] ?? false,
                 'requires_due_date' => $data['requires_due_date'] ?? false,
                 'requires_progress_report' => $data['requires_progress_report'] ?? false,
-                'notify_on_due' => $data['notify_on_due'] ?? false,
-                'notify_on_overdue' => $data['notify_on_overdue'] ?? false,
+                'notify_on_due' => $data['notify_on_due'] ?? ($isSelfAssignment && !empty($data['due_date'])),
+                'notify_on_overdue' => $data['notify_on_overdue'] ?? ($isSelfAssignment && !empty($data['due_date'])),
                 'notify_on_completion' => $data['notify_on_completion'] ?? false,
                 'meeting_id' => $data['meeting_id'] ?? null,
             ]);

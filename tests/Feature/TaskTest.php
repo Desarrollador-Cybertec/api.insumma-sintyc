@@ -81,6 +81,32 @@ class TaskTest extends TestCase
             ->assertJsonPath('status', TaskStatusEnum::PENDING->value);
     }
 
+    public function test_superadmin_can_create_task_with_combined_notification_preferences(): void
+    {
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/tasks', [
+                'title' => 'Tarea con notificaciones combinadas',
+                'assigned_to_user_id' => $this->worker->id,
+                'notify_on_assignment_start' => true,
+                'notify_on_review_completion' => true,
+                'notify_on_due_overdue' => true,
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('notify_on_assignment_start', true)
+            ->assertJsonPath('notify_on_review_completion', true)
+            ->assertJsonPath('notify_on_due_overdue', true);
+
+        $this->assertDatabaseHas('tasks', [
+            'title' => 'Tarea con notificaciones combinadas',
+            'requires_progress_report' => true,
+            'requires_completion_notification' => true,
+            'notify_on_completion' => true,
+            'notify_on_due' => true,
+            'notify_on_overdue' => true,
+        ]);
+    }
+
     public function test_superadmin_can_create_task_assigned_to_area(): void
     {
         $response = $this->actingAs($this->admin, 'sanctum')
@@ -362,7 +388,9 @@ class TaskTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/start");
+            ->postJson("/api/tasks/{$task->id}/start", [
+                'comment' => 'Inicio la tarea',
+            ]);
 
         $response->assertOk();
         $this->assertEquals(TaskStatusEnum::IN_PROGRESS, $task->fresh()->status);
@@ -382,7 +410,9 @@ class TaskTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/start");
+            ->postJson("/api/tasks/{$task->id}/start", [
+                'comment' => 'Intento iniciar',
+            ]);
 
         $response->assertForbidden();
     }
@@ -399,7 +429,9 @@ class TaskTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/submit-review");
+            ->postJson("/api/tasks/{$task->id}/submit-review", [
+                'comment' => 'Lista para revisión',
+            ]);
 
         $response->assertOk();
         $this->assertEquals(TaskStatusEnum::IN_REVIEW, $task->fresh()->status);
@@ -416,7 +448,9 @@ class TaskTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/submit-review");
+            ->postJson("/api/tasks/{$task->id}/submit-review", [
+                'comment' => 'Completo la tarea',
+            ]);
 
         $response->assertOk();
         $this->assertEquals(TaskStatusEnum::COMPLETED, $task->fresh()->status);
@@ -605,7 +639,9 @@ class TaskTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/submit-review");
+            ->postJson("/api/tasks/{$task->id}/submit-review", [
+                'comment' => 'Intento cerrar sin adjunto',
+            ]);
 
         $response->assertUnprocessable();
     }
@@ -621,7 +657,9 @@ class TaskTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/submit-review");
+            ->postJson("/api/tasks/{$task->id}/submit-review", [
+                'comment' => 'Intento cerrar sin comentario previo',
+            ]);
 
         $response->assertUnprocessable();
     }
@@ -818,7 +856,9 @@ class TaskTest extends TestCase
         ]);
 
         $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/start");
+            ->postJson("/api/tasks/{$task->id}/start", [
+                'comment' => 'Inicio la tarea',
+            ]);
 
         $this->assertDatabaseHas('task_status_history', [
             'task_id'     => $task->id,
@@ -1025,7 +1065,9 @@ class TaskTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/start");
+            ->postJson("/api/tasks/{$task->id}/start", [
+                'comment' => 'Inicio tarea externa',
+            ]);
 
         $response->assertOk();
         $this->assertEquals(TaskStatusEnum::IN_PROGRESS, $task->fresh()->status);
@@ -1043,7 +1085,9 @@ class TaskTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/submit-review");
+            ->postJson("/api/tasks/{$task->id}/submit-review", [
+                'comment' => 'Completo tarea externa',
+            ]);
 
         $response->assertOk();
         $this->assertEquals(TaskStatusEnum::COMPLETED, $task->fresh()->status);
@@ -1062,7 +1106,9 @@ class TaskTest extends TestCase
         ]);
 
         $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/start")
+            ->postJson("/api/tasks/{$task->id}/start", [
+                'comment' => 'Intento iniciar tarea ajena',
+            ])
             ->assertForbidden();
     }
 }

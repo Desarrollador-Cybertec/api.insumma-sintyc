@@ -111,26 +111,28 @@ class TaskCreationService
                 Mail::to($data['external_email'])->queue(new ExternalTaskMail($task));
             }
 
-            // Dispatch notification for task assignment
-            if ($task->current_responsible_user_id) {
-                // Direct assignment to a worker — notify them via event
-                event(new TaskAssigned($task, $creator));
-            } elseif ($task->status === TaskStatusEnum::PENDING_ASSIGNMENT) {
-                // Area assignment or manager-user assignment:
-                // the task is pending_assignment and needs the manager to claim/delegate.
-                // Notify the area manager so they know a task is waiting.
-                if ($isManagerAssignment && !empty($data['assigned_to_user_id'])) {
-                    // Assigned directly to a manager-user: notify that manager
-                    $manager = User::find($data['assigned_to_user_id']);
-                    if ($manager && $manager->id !== $creator->id) {
-                        $manager->notify(new TaskAssignedNotification($task, $creator));
-                    }
-                } elseif ($isAreaAssignment && $areaId) {
-                    // Assigned to an area: notify the area's manager
-                    $area = Area::find($areaId);
-                    $manager = $area?->manager;
-                    if ($manager && $manager->id !== $creator->id) {
-                        $manager->notify(new TaskAssignedNotification($task, $creator));
+            if ($task->shouldNotifyAssignmentOrStart()) {
+                // Dispatch notification for task assignment
+                if ($task->current_responsible_user_id) {
+                    // Direct assignment to a worker — notify them via event
+                    event(new TaskAssigned($task, $creator));
+                } elseif ($task->status === TaskStatusEnum::PENDING_ASSIGNMENT) {
+                    // Area assignment or manager-user assignment:
+                    // the task is pending_assignment and needs the manager to claim/delegate.
+                    // Notify the area manager so they know a task is waiting.
+                    if ($isManagerAssignment && !empty($data['assigned_to_user_id'])) {
+                        // Assigned directly to a manager-user: notify that manager
+                        $manager = User::find($data['assigned_to_user_id']);
+                        if ($manager && $manager->id !== $creator->id) {
+                            $manager->notify(new TaskAssignedNotification($task, $creator));
+                        }
+                    } elseif ($isAreaAssignment && $areaId) {
+                        // Assigned to an area: notify the area's manager
+                        $area = Area::find($areaId);
+                        $manager = $area?->manager;
+                        if ($manager && $manager->id !== $creator->id) {
+                            $manager->notify(new TaskAssignedNotification($task, $creator));
+                        }
                     }
                 }
             }

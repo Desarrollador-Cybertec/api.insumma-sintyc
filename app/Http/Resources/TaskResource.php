@@ -14,6 +14,9 @@ class TaskResource extends JsonResource
         $daysSinceUpdate = $lastUpdate
             ? (int) $lastUpdate->created_at->diffInDays(now())
             : $ageDays;
+        $notifyOnAssignmentStart = (bool) $this->requires_progress_report;
+        $notifyOnReviewCompletion = (bool) ($this->requires_completion_notification || $this->notify_on_completion);
+        $notifyOnDueOverdue = (bool) ($this->notify_on_due || $this->notify_on_overdue);
 
         return [
             'id' => $this->id,
@@ -42,6 +45,9 @@ class TaskResource extends JsonResource
             'notify_on_due' => $this->notify_on_due,
             'notify_on_overdue' => $this->notify_on_overdue,
             'notify_on_completion' => $this->notify_on_completion,
+            'notify_on_assignment_start' => $notifyOnAssignmentStart,
+            'notify_on_review_completion' => $notifyOnReviewCompletion,
+            'notify_on_due_overdue' => $notifyOnDueOverdue,
             'progress_percent' => $this->progress_percent,
             'meeting' => new MeetingResource($this->whenLoaded('meeting')),
             'is_overdue' => $this->isOverdue(),

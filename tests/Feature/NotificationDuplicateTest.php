@@ -68,6 +68,7 @@ class NotificationDuplicateTest extends TestCase
             ->postJson('/api/tasks', [
                 'title' => 'Tarea para worker',
                 'assigned_to_user_id' => $this->worker->id,
+                'notify_on_assignment_start' => true,
             ]);
 
         $response->assertCreated();
@@ -84,6 +85,7 @@ class NotificationDuplicateTest extends TestCase
             ->postJson('/api/tasks', [
                 'title' => 'Tarea para worker con copy a manager',
                 'assigned_to_user_id' => $this->worker->id,
+                'notify_on_assignment_start' => true,
             ]);
 
         $response->assertCreated();
@@ -100,6 +102,7 @@ class NotificationDuplicateTest extends TestCase
             ->postJson('/api/tasks', [
                 'title' => 'Tarea del manager para worker',
                 'assigned_to_user_id' => $this->worker->id,
+                'notify_on_assignment_start' => true,
             ]);
 
         $response->assertCreated();
@@ -119,6 +122,7 @@ class NotificationDuplicateTest extends TestCase
             ->postJson('/api/tasks', [
                 'title' => 'Tarea para área',
                 'assigned_to_area_id' => $this->area->id,
+                'notify_on_assignment_start' => true,
             ]);
 
         $response->assertCreated();
@@ -138,6 +142,7 @@ class NotificationDuplicateTest extends TestCase
             ->postJson('/api/tasks', [
                 'title' => 'Tarea para manager directo',
                 'assigned_to_user_id' => $this->manager->id,
+                'notify_on_assignment_start' => true,
             ]);
 
         $response->assertCreated();

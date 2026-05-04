@@ -188,4 +188,42 @@ class TaskUpdateTest extends TestCase
             ->assertJsonPath('data.progress_percent', 25)
             ->assertJsonCount(1, 'data.updates');
     }
+
+    public function test_manager_can_update_combined_notification_preferences(): void
+    {
+        $task = Task::create([
+            'title' => 'Tarea configurable',
+            'created_by' => $this->admin->id,
+            'assigned_by' => $this->admin->id,
+            'current_responsible_user_id' => $this->worker->id,
+            'area_id' => $this->area->id,
+            'status' => TaskStatusEnum::PENDING,
+            'requires_progress_report' => false,
+            'requires_completion_notification' => false,
+            'notify_on_completion' => false,
+            'notify_on_due' => false,
+            'notify_on_overdue' => false,
+        ]);
+
+        $response = $this->actingAs($this->manager, 'sanctum')
+            ->patchJson("/api/tasks/{$task->id}", [
+                'notify_on_assignment_start' => true,
+                'notify_on_review_completion' => true,
+                'notify_on_due_overdue' => true,
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.notify_on_assignment_start', true)
+            ->assertJsonPath('data.notify_on_review_completion', true)
+            ->assertJsonPath('data.notify_on_due_overdue', true);
+
+        $this->assertDatabaseHas('tasks', [
+            'id' => $task->id,
+            'requires_progress_report' => true,
+            'requires_completion_notification' => true,
+            'notify_on_completion' => true,
+            'notify_on_due' => true,
+            'notify_on_overdue' => true,
+        ]);
+    }
 }

@@ -208,4 +208,19 @@ class Task extends Model
             && $this->due_date->isPast()
             && !in_array($this->status, [TaskStatusEnum::COMPLETED, TaskStatusEnum::CANCELLED]);
     }
+
+    public function shouldNotifyAssignmentOrStart(): bool
+    {
+        return (bool) $this->requires_progress_report;
+    }
+
+    public function shouldNotifyReviewOrCompletion(): bool
+    {
+        return (bool) ($this->requires_completion_notification || $this->notify_on_completion);
+    }
+
+    public function shouldNotifyDueOrOverdue(): bool
+    {
+        return (bool) ($this->notify_on_due || $this->notify_on_overdue);
+    }
 }

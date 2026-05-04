@@ -6,10 +6,7 @@ use App\Enums\TaskStatusEnum;
 use App\Events\TaskStatusChanged;
 use App\Models\User;
 use App\Notifications\TaskApprovedNotification;
-use App\Notifications\TaskCancelledNotification;
 use App\Notifications\TaskCompletedNotification;
-use App\Notifications\TaskRejectedNotification;
-use App\Notifications\TaskReopenedNotification;
 use App\Notifications\TaskStartedNotification;
 use App\Notifications\TaskSubmittedForReviewNotification;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -25,12 +22,15 @@ class SendTaskStatusNotification implements ShouldQueue
         $changedBy = $event->changedBy;
 
         match ($event->toStatus) {
-            TaskStatusEnum::IN_REVIEW->value   => $this->handleSubmittedForReview($task, $changedBy),
-            TaskStatusEnum::COMPLETED->value   => $this->handleCompleted($task, $changedBy),
-            TaskStatusEnum::REJECTED->value    => $this->handleRejected($task, $changedBy, $event->note),
-            TaskStatusEnum::CANCELLED->value   => $this->handleCancelled($task, $changedBy, $event->note),
-            TaskStatusEnum::PENDING->value     => $this->handlePossibleReopen($task, $changedBy, $event->fromStatus, $event->note),
-            TaskStatusEnum::IN_PROGRESS->value => $this->handleInProgress($task, $changedBy, $event->fromStatus, $event->note),
+            TaskStatusEnum::IN_REVIEW->value => $task->shouldNotifyReviewOrCompletion()
+                ? $this->handleSubmittedForReview($task, $changedBy)
+                : null,
+            TaskStatusEnum::COMPLETED->value => $task->shouldNotifyReviewOrCompletion()
+                ? $this->handleCompleted($task, $changedBy)
+                : null,
+            TaskStatusEnum::IN_PROGRESS->value => $task->shouldNotifyAssignmentOrStart()
+                ? $this->handleStarted($task, $changedBy)
+                : null,
             default => null,
         };
     }
@@ -95,54 +95,6 @@ class SendTaskStatusNotification implements ShouldQueue
     }
 
     /**
-     * Task rejected → notify responsible worker.
-     */
-    private function handleRejected($task, User $changedBy, ?string $note): void
-    {
-        $responsible = $this->getResponsible($task);
-
-        if ($responsible && $responsible->id !== $changedBy->id) {
-            $responsible->notify(
-                new TaskRejectedNotification($task, $changedBy, $note ?? 'Sin motivo especificado')
-            );
-        }
-    }
-
-    /**
-     * Task cancelled → notify responsible if different from canceller.
-     */
-    private function handleCancelled($task, User $cancelledBy, ?string $note): void
-    {
-        $responsible = $this->getResponsible($task);
-
-        if ($responsible && $responsible->id !== $cancelledBy->id) {
-            $responsible->notify(new TaskCancelledNotification($task, $cancelledBy, $note));
-        }
-    }
-
-    /**
-     * Task reopened from a terminal state → notify responsible if different.
-     */
-    private function handlePossibleReopen($task, User $reopenedBy, string $fromStatus, ?string $note): void
-    {
-        $terminalStatuses = [
-            TaskStatusEnum::COMPLETED->value,
-            TaskStatusEnum::CANCELLED->value,
-            TaskStatusEnum::OVERDUE->value,
-        ];
-
-        if (!in_array($fromStatus, $terminalStatuses)) {
-            return; // Normal transition (e.g., PENDING → IN_PROGRESS), not a reopen
-        }
-
-        $responsible = $this->getResponsible($task);
-
-        if ($responsible && $responsible->id !== $reopenedBy->id) {
-            $responsible->notify(new TaskReopenedNotification($task, $reopenedBy, $note));
-        }
-    }
-
-    /**
      * Notify the area manager of the task (organizational tasks only).
      */
     private function notifyAreaManager($task, User $excludeUser, $notification): void
@@ -179,28 +131,6 @@ class SendTaskStatusNotification implements ShouldQueue
         return $task->current_responsible_user_id
             ? User::find($task->current_responsible_user_id)
             : null;
-    }
-
-    /**
-     * Task moved to IN_PROGRESS:
-     *  - From a terminal state (completed/cancelled/overdue) → reopen, notify responsible.
-     *  - From PENDING / PENDING_ASSIGNMENT / REJECTED → fresh start, notify approver chain.
-     */
-    private function handleInProgress($task, User $changedBy, string $fromStatus, ?string $note): void
-    {
-        $terminalStatuses = [
-            TaskStatusEnum::COMPLETED->value,
-            TaskStatusEnum::CANCELLED->value,
-            TaskStatusEnum::OVERDUE->value,
-        ];
-
-        if (in_array($fromStatus, $terminalStatuses)) {
-            $this->handlePossibleReopen($task, $changedBy, $fromStatus, $note);
-            return;
-        }
-
-        // Fresh start (PENDING → IN_PROGRESS or REJECTED → IN_PROGRESS)
-        $this->handleStarted($task, $changedBy);
     }
 
     /**

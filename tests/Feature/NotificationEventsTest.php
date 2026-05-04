@@ -15,10 +15,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Notifications\TaskApprovedNotification;
 use App\Notifications\TaskAssignedNotification;
-use App\Notifications\TaskCancelledNotification;
 use App\Notifications\TaskCompletedNotification;
-use App\Notifications\TaskRejectedNotification;
-use App\Notifications\TaskReopenedNotification;
 use App\Notifications\TaskSubmittedForReviewNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
@@ -97,6 +94,7 @@ class NotificationEventsTest extends TestCase
             ->postJson('/api/tasks', [
                 'title' => 'Nueva tarea',
                 'assigned_to_user_id' => $this->worker->id,
+                'notify_on_assignment_start' => true,
             ]);
 
         Event::assertDispatched(TaskAssigned::class, function ($event) {
@@ -113,6 +111,7 @@ class NotificationEventsTest extends TestCase
             ->postJson('/api/tasks', [
                 'title' => 'Tarea de área',
                 'assigned_to_area_id' => $this->area->id,
+                'notify_on_assignment_start' => true,
             ]);
 
         // Area assignments have no current_responsible_user_id → no event
@@ -159,7 +158,9 @@ class NotificationEventsTest extends TestCase
         ]);
 
         $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/start");
+            ->postJson("/api/tasks/{$task->id}/start", [
+                'comment' => 'Inicio la tarea',
+            ]);
 
         Event::assertDispatched(TaskStatusChanged::class, function ($event) {
             return $event->fromStatus === TaskStatusEnum::PENDING->value
@@ -181,7 +182,9 @@ class NotificationEventsTest extends TestCase
         ]);
 
         $this->actingAs($this->manager, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/approve");
+            ->postJson("/api/tasks/{$task->id}/approve", [
+                'note' => 'Aprobada',
+            ]);
 
         Event::assertDispatched(TaskStatusChanged::class, function ($event) {
             return $event->toStatus === TaskStatusEnum::COMPLETED->value;
@@ -252,10 +255,13 @@ class NotificationEventsTest extends TestCase
             'area_id' => $this->area->id,
             'status' => TaskStatusEnum::IN_PROGRESS,
             'requires_manager_approval' => true,
+            'requires_completion_notification' => true,
         ]);
 
         $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/submit-review");
+            ->postJson("/api/tasks/{$task->id}/submit-review", [
+                'comment' => 'Lista para revisión',
+            ]);
 
         Notification::assertSentTo($this->manager, TaskSubmittedForReviewNotification::class);
         Notification::assertNotSentTo($this->admin, TaskSubmittedForReviewNotification::class);
@@ -275,10 +281,13 @@ class NotificationEventsTest extends TestCase
             'area_id' => null,
             'status' => TaskStatusEnum::IN_PROGRESS,
             'requires_manager_approval' => true,
+            'requires_completion_notification' => true,
         ]);
 
         $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/submit-review");
+            ->postJson("/api/tasks/{$task->id}/submit-review", [
+                'comment' => 'Lista para revisión',
+            ]);
 
         Notification::assertSentTo($this->admin, TaskSubmittedForReviewNotification::class);
         Notification::assertNotSentTo($this->worker, TaskSubmittedForReviewNotification::class);
@@ -298,10 +307,13 @@ class NotificationEventsTest extends TestCase
             'area_id' => $this->area->id,
             'status' => TaskStatusEnum::IN_PROGRESS,
             'requires_manager_approval' => true,
+            'requires_completion_notification' => true,
         ]);
 
         $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/submit-review");
+            ->postJson("/api/tasks/{$task->id}/submit-review", [
+                'comment' => 'Lista para revisión',
+            ]);
 
         Notification::assertSentTo($this->manager, TaskSubmittedForReviewNotification::class);
         Notification::assertNotSentTo($this->admin, TaskSubmittedForReviewNotification::class);
@@ -320,10 +332,13 @@ class NotificationEventsTest extends TestCase
             'area_id' => $this->area->id,
             'status' => TaskStatusEnum::IN_PROGRESS,
             'requires_manager_approval' => true,
+            'requires_completion_notification' => true,
         ]);
 
         $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/submit-review");
+            ->postJson("/api/tasks/{$task->id}/submit-review", [
+                'comment' => 'Lista para revisión',
+            ]);
 
         Notification::assertSentTo($this->admin, TaskSubmittedForReviewNotification::class);
         Notification::assertNotSentTo($this->worker, TaskSubmittedForReviewNotification::class);
@@ -342,10 +357,13 @@ class NotificationEventsTest extends TestCase
             'area_id' => $this->area->id,
             'status' => TaskStatusEnum::IN_PROGRESS,
             'requires_manager_approval' => false,
+            'requires_completion_notification' => true,
         ]);
 
         $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/submit-review");
+            ->postJson("/api/tasks/{$task->id}/submit-review", [
+                'comment' => 'Completo la tarea',
+            ]);
 
         // Worker completed → manager gets TaskCompletedNotification
         Notification::assertSentTo($this->manager, TaskCompletedNotification::class);
@@ -364,10 +382,13 @@ class NotificationEventsTest extends TestCase
             'area_id' => $this->area->id,
             'status' => TaskStatusEnum::IN_REVIEW,
             'requires_manager_approval' => true,
+            'requires_completion_notification' => true,
         ]);
 
         $this->actingAs($this->manager, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/approve");
+            ->postJson("/api/tasks/{$task->id}/approve", [
+                'note' => 'Aprobada',
+            ]);
 
         Notification::assertSentTo($this->worker, TaskApprovedNotification::class);
         Notification::assertNotSentTo($this->manager, TaskApprovedNotification::class);
@@ -375,7 +396,7 @@ class NotificationEventsTest extends TestCase
 
     // ── Manager Rejects → Worker Gets Rejected Notification ──
 
-    public function test_manager_rejects_notifies_worker(): void
+    public function test_manager_rejects_does_not_send_task_notification(): void
     {
         Notification::fake();
 
@@ -393,14 +414,12 @@ class NotificationEventsTest extends TestCase
                 'note' => 'Falta evidencia',
             ]);
 
-        Notification::assertSentTo($this->worker, TaskRejectedNotification::class, function ($notification) {
-            return $notification->reason === 'Falta evidencia';
-        });
+        Notification::assertNotSentTo($this->worker, \App\Notifications\TaskRejectedNotification::class);
     }
 
     // ── Cancel → Responsible Notification ──
 
-    public function test_cancel_notifies_responsible_user(): void
+    public function test_cancel_does_not_send_task_notification(): void
     {
         Notification::fake();
 
@@ -415,7 +434,7 @@ class NotificationEventsTest extends TestCase
         $this->actingAs($this->admin, 'sanctum')
             ->postJson("/api/tasks/{$task->id}/cancel", ['comment' => 'Se cancela la tarea.']);
 
-        Notification::assertSentTo($this->worker, TaskCancelledNotification::class);
+        Notification::assertNotSentTo($this->worker, \App\Notifications\TaskCancelledNotification::class);
     }
 
     public function test_cancel_does_not_notify_self(): void
@@ -432,12 +451,12 @@ class NotificationEventsTest extends TestCase
         $this->actingAs($this->worker, 'sanctum')
             ->postJson("/api/tasks/{$task->id}/cancel", ['comment' => 'Cancelo mi propia tarea.']);
 
-        Notification::assertNotSentTo($this->worker, TaskCancelledNotification::class);
+        Notification::assertNotSentTo($this->worker, \App\Notifications\TaskCancelledNotification::class);
     }
 
     // ── Reopen → Responsible Notification ──
 
-    public function test_reopen_completed_task_notifies_responsible(): void
+    public function test_reopen_completed_task_does_not_send_task_notification(): void
     {
         Notification::fake();
 
@@ -454,12 +473,10 @@ class NotificationEventsTest extends TestCase
         $this->actingAs($this->admin, 'sanctum')
             ->postJson("/api/tasks/{$task->id}/reopen", ['comment' => 'Requiere ajustes']);
 
-        Notification::assertSentTo($this->worker, TaskReopenedNotification::class, function ($notification) {
-            return $notification->note === 'Requiere ajustes';
-        });
+        Notification::assertNotSentTo($this->worker, \App\Notifications\TaskReopenedNotification::class);
     }
 
-    public function test_reopen_cancelled_task_notifies_responsible(): void
+    public function test_reopen_cancelled_task_does_not_send_task_notification(): void
     {
         Notification::fake();
 
@@ -475,7 +492,7 @@ class NotificationEventsTest extends TestCase
         $this->actingAs($this->admin, 'sanctum')
             ->postJson("/api/tasks/{$task->id}/reopen", ['comment' => 'Se reabre la tarea.']);
 
-        Notification::assertSentTo($this->worker, TaskReopenedNotification::class);
+        Notification::assertNotSentTo($this->worker, \App\Notifications\TaskReopenedNotification::class);
     }
 
     public function test_normal_start_does_not_send_reopen_notification(): void
@@ -491,11 +508,14 @@ class NotificationEventsTest extends TestCase
         ]);
 
         $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/start");
+            ->postJson("/api/tasks/{$task->id}/start", [
+                'comment' => 'Inicio normal',
+            ])
+            ->assertOk();
 
         // PENDING → IN_PROGRESS is a normal start, not a reopen
-        Notification::assertNotSentTo($this->worker, TaskReopenedNotification::class);
-        Notification::assertNotSentTo($this->manager, TaskReopenedNotification::class);
+        Notification::assertNotSentTo($this->worker, \App\Notifications\TaskReopenedNotification::class);
+        Notification::assertNotSentTo($this->manager, \App\Notifications\TaskReopenedNotification::class);
     }
 
     // ── Category field ──
@@ -511,10 +531,13 @@ class NotificationEventsTest extends TestCase
             'area_id' => $this->area->id,
             'status' => TaskStatusEnum::IN_REVIEW,
             'requires_manager_approval' => true,
+            'requires_completion_notification' => true,
         ]);
 
         $this->actingAs($this->manager, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/approve");
+            ->postJson("/api/tasks/{$task->id}/approve", [
+                'note' => 'Aprobada',
+            ]);
 
         Notification::assertSentTo($this->worker, TaskApprovedNotification::class, function ($notification) use ($task) {
             $data = $notification->toArray($this->worker);
@@ -553,10 +576,13 @@ class NotificationEventsTest extends TestCase
             'current_responsible_user_id' => $this->worker->id,
             'area_id' => $this->area->id,
             'status' => TaskStatusEnum::PENDING,
+            'requires_progress_report' => true,
         ]);
 
         $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/start");
+            ->postJson("/api/tasks/{$task->id}/start", [
+                'comment' => 'Inicio la tarea',
+            ]);
 
         Notification::assertSentTo($this->admin, \App\Notifications\TaskStartedNotification::class);
         Notification::assertNotSentTo($this->worker, \App\Notifications\TaskStartedNotification::class);
@@ -573,15 +599,18 @@ class NotificationEventsTest extends TestCase
             'assigned_by' => $this->worker->id,
             'current_responsible_user_id' => $this->worker->id,
             'status' => TaskStatusEnum::PENDING,
+            'requires_progress_report' => true,
         ]);
 
         $this->actingAs($this->worker, 'sanctum')
-            ->postJson("/api/tasks/{$task->id}/start");
+            ->postJson("/api/tasks/{$task->id}/start", [
+                'comment' => 'Inicio mi tarea',
+            ]);
 
         Notification::assertNotSentTo($this->worker, \App\Notifications\TaskStartedNotification::class);
     }
 
-    public function test_reopen_from_completed_still_sends_reopen_not_started(): void
+    public function test_reopen_from_completed_sends_no_task_notification(): void
     {
         Notification::fake();
 
@@ -599,13 +628,59 @@ class NotificationEventsTest extends TestCase
         $this->actingAs($this->admin, 'sanctum')
             ->postJson("/api/tasks/{$task->id}/reopen", ['comment' => 'Requiere ajustes']);
 
-        Notification::assertSentTo($this->worker, \App\Notifications\TaskReopenedNotification::class);
+        Notification::assertNotSentTo($this->worker, \App\Notifications\TaskReopenedNotification::class);
         Notification::assertNotSentTo($this->worker, \App\Notifications\TaskStartedNotification::class);
+    }
+
+    public function test_start_task_skips_notification_when_assignment_start_option_is_disabled(): void
+    {
+        Notification::fake();
+
+        $task = Task::create([
+            'title' => 'Tarea sin aviso de inicio',
+            'created_by' => $this->admin->id,
+            'assigned_by' => $this->admin->id,
+            'current_responsible_user_id' => $this->worker->id,
+            'area_id' => $this->area->id,
+            'status' => TaskStatusEnum::PENDING,
+            'requires_progress_report' => false,
+        ]);
+
+        $this->actingAs($this->worker, 'sanctum')
+            ->postJson("/api/tasks/{$task->id}/start", [
+                'comment' => 'Inicio sin avisar',
+            ]);
+
+        Notification::assertNotSentTo($this->admin, \App\Notifications\TaskStartedNotification::class);
+    }
+
+    public function test_submit_for_review_skips_notification_when_review_completion_option_is_disabled(): void
+    {
+        Notification::fake();
+
+        $task = Task::create([
+            'title' => 'Tarea sin aviso de revisión',
+            'created_by' => $this->admin->id,
+            'assigned_by' => $this->admin->id,
+            'current_responsible_user_id' => $this->worker->id,
+            'area_id' => $this->area->id,
+            'status' => TaskStatusEnum::IN_PROGRESS,
+            'requires_manager_approval' => true,
+            'requires_completion_notification' => false,
+            'notify_on_completion' => false,
+        ]);
+
+        $this->actingAs($this->worker, 'sanctum')
+            ->postJson("/api/tasks/{$task->id}/submit-review", [
+                'comment' => 'Lista para revisión',
+            ]);
+
+        Notification::assertNotSentTo($this->admin, TaskSubmittedForReviewNotification::class);
     }
 
     // ── TaskUpdateAdded ──
 
-    public function test_adding_update_notifies_creator(): void
+    public function test_adding_update_does_not_send_task_notification(): void
     {
         Notification::fake();
 
@@ -624,7 +699,7 @@ class NotificationEventsTest extends TestCase
                 'comment' => 'Avanzando bien',
             ]);
 
-        Notification::assertSentTo($this->admin, \App\Notifications\TaskUpdateAddedNotification::class);
+        Notification::assertNotSentTo($this->admin, \App\Notifications\TaskUpdateAddedNotification::class);
         Notification::assertNotSentTo($this->worker, \App\Notifications\TaskUpdateAddedNotification::class);
     }
 
@@ -650,7 +725,7 @@ class NotificationEventsTest extends TestCase
 
     // ── TaskAttachmentAdded ──
 
-    public function test_adding_attachment_notifies_creator(): void
+    public function test_adding_attachment_does_not_send_task_notification(): void
     {
         Notification::fake();
 
@@ -673,7 +748,7 @@ class NotificationEventsTest extends TestCase
                 'attachment_type' => 'evidence',
             ]);
 
-        Notification::assertSentTo($this->admin, \App\Notifications\TaskAttachmentAddedNotification::class);
+        Notification::assertNotSentTo($this->admin, \App\Notifications\TaskAttachmentAddedNotification::class);
         Notification::assertNotSentTo($this->worker, \App\Notifications\TaskAttachmentAddedNotification::class);
     }
 }

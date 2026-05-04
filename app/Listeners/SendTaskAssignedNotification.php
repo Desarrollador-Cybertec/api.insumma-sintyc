@@ -16,6 +16,11 @@ class SendTaskAssignedNotification implements ShouldQueue
     public function handle(TaskAssigned $event): void
     {
         $task = $event->task;
+
+        if (!$task->shouldNotifyAssignmentOrStart()) {
+            return;
+        }
+
         $assignedTo = $task->current_responsible_user_id
             ? User::find($task->current_responsible_user_id)
             : null;

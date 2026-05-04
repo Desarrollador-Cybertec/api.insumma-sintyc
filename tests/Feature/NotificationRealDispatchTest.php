@@ -72,6 +72,7 @@ class NotificationRealDispatchTest extends TestCase
             ->postJson('/api/tasks', [
                 'title' => 'Test duplicados',
                 'assigned_to_user_id' => $this->worker->id,
+                'notify_on_assignment_start' => true,
             ])
             ->assertCreated();
 
@@ -96,6 +97,7 @@ class NotificationRealDispatchTest extends TestCase
             ->postJson('/api/tasks', [
                 'title' => 'Test manager asigna',
                 'assigned_to_user_id' => $this->worker->id,
+                'notify_on_assignment_start' => true,
             ])
             ->assertCreated();
 
@@ -119,6 +121,7 @@ class NotificationRealDispatchTest extends TestCase
             ->postJson('/api/tasks', [
                 'title' => 'Test asignación a área',
                 'assigned_to_area_id' => $this->area->id,
+                'notify_on_assignment_start' => true,
             ])
             ->assertCreated();
 

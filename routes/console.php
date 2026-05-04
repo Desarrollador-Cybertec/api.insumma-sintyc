@@ -19,8 +19,12 @@ try {
     $canReadSettings = false;
 }
 
+$scheduleTimezone = config('app.schedule_timezone', config('app.timezone', 'UTC'));
+
 Schedule::command('tasks:send-daily-summary')
-    ->dailyAt($canReadSettings ? SystemSetting::getValue('daily_summary_time', '07:00') : '07:00');
+    ->dailyAt($canReadSettings ? SystemSetting::getValue('daily_summary_time', '07:00') : '07:00')
+    ->timezone($scheduleTimezone);
 
 Schedule::command('tasks:send-due-reminders')
-    ->dailyAt($canReadSettings ? SystemSetting::getValue('send_reminders_time', '08:00') : '08:00');
+    ->dailyAt($canReadSettings ? SystemSetting::getValue('send_reminders_time', '08:00') : '08:00')
+    ->timezone($scheduleTimezone);

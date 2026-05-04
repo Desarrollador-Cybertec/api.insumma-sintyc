@@ -63,6 +63,15 @@ git checkout HEAD~1 -- .
 
 ## Cron Jobs
 
+Configurar zona horaria del scheduler en el entorno de despliegue:
+
+```env
+APP_TIMEZONE=UTC
+APP_SCHEDULE_TIMEZONE=America/Bogota
+```
+
+`APP_TIMEZONE` mantiene el backend en UTC. `APP_SCHEDULE_TIMEZONE` define la hora local usada por las automatizaciones programadas.
+
 Agregar al crontab del servidor:
 
 ```cron
@@ -72,12 +81,12 @@ Agregar al crontab del servidor:
 
 ### Tareas Programadas
 
+Las horas configuradas para las tareas programadas se interpretan en la zona definida por `APP_SCHEDULE_TIMEZONE`.
+
 | Comando | Frecuencia | Hora | Descripción |
 |---------|-----------|------|-------------|
-| `tasks:detect-overdue` | Cada hora | — | Marca tareas vencidas como OVERDUE |
-| `tasks:send-daily-summary` | Diario | 7:00 AM | Envía resumen de tareas pendientes |
-| `tasks:send-due-reminders` | Diario | 8:00 AM | Alerta de tareas próximas a vencer |
-| `tasks:detect-inactivity` | Diario | 9:00 AM | Detecta tareas sin actividad |
+| `tasks:send-daily-summary` | Diario | 7:00 AM | Envía un resumen por responsable con activas, por vencer, sin empezar y vencidas |
+| `tasks:send-due-reminders` | Diario | 8:00 AM | Envía un recordatorio único el día del vencimiento |
 | `license:sync-users` | Periódico | — | Sincroniza conteo de usuarios con licencia |
 | `license:report-usage` | Periódico | — | Reporta uso de licencia |
 | `attachments:retry-failed` | Periódico | — | Reintenta procesamiento de adjuntos fallidos |

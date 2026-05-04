@@ -47,13 +47,6 @@ class SystemConfigSeeder extends Seeder
                 'description' => 'Enviar alerta el día de vencimiento',
             ],
             [
-                'key' => 'alert_overdue',
-                'value' => '1',
-                'type' => 'boolean',
-                'group' => 'notifications',
-                'description' => 'Enviar alerta cuando una tarea esté vencida',
-            ],
-            [
                 'key' => 'copy_to_manager',
                 'value' => '1',
                 'type' => 'boolean',
@@ -77,20 +70,6 @@ class SystemConfigSeeder extends Seeder
 
             // Automation group
             [
-                'key' => 'detect_overdue_enabled',
-                'value' => '1',
-                'type' => 'boolean',
-                'group' => 'automation',
-                'description' => 'Activar detección automática de tareas vencidas',
-            ],
-            [
-                'key' => 'detect_overdue_time',
-                'value' => '06:00',
-                'type' => 'string',
-                'group' => 'automation',
-                'description' => 'Hora de ejecución de detección de vencidas (HH:MM)',
-            ],
-            [
                 'key' => 'daily_summary_time',
                 'value' => '07:00',
                 'type' => 'string',
@@ -110,29 +89,6 @@ class SystemConfigSeeder extends Seeder
                 'type' => 'string',
                 'group' => 'automation',
                 'description' => 'Hora de envío de recordatorios (HH:MM)',
-            ],
-
-            // Inactivity alerts
-            [
-                'key' => 'inactivity_alert_enabled',
-                'value' => '1',
-                'type' => 'boolean',
-                'group' => 'automation',
-                'description' => 'Activar alertas por inactividad (tareas sin avance)',
-            ],
-            [
-                'key' => 'inactivity_alert_days',
-                'value' => '7',
-                'type' => 'integer',
-                'group' => 'automation',
-                'description' => 'Días sin avance para generar alerta de inactividad',
-            ],
-            [
-                'key' => 'inactivity_alert_time',
-                'value' => '09:00',
-                'type' => 'string',
-                'group' => 'automation',
-                'description' => 'Hora de ejecución de detección de inactividad (HH:MM)',
             ],
         ];
 
@@ -156,14 +112,8 @@ class SystemConfigSeeder extends Seeder
             [
                 'slug' => 'task_reminder',
                 'name' => 'Recordatorio de tarea próxima a vencer',
-                'subject' => 'Recordatorio: La tarea "{task_title}" vence pronto',
-                'body' => "La tarea \"{task_title}\" vence en {days_remaining} día(s).\n\nFecha límite: {due_date}\n\nAsegúrate de completarla a tiempo.",
-            ],
-            [
-                'slug' => 'task_overdue',
-                'name' => 'Tarea vencida',
-                'subject' => 'Alerta: La tarea "{task_title}" está vencida',
-                'body' => "La tarea \"{task_title}\" está vencida desde hace {days_overdue} día(s).\n\nFecha límite original: {due_date}\n\nPor favor actualiza el estado o contacta a tu encargado.",
+                'subject' => 'Recordatorio: La tarea "{task_title}" vence {due_phrase}',
+                'body' => "La tarea \"{task_title}\" vence {due_phrase}.\n\nFecha límite: {due_date}\n\nAsegúrate de atenderla hoy.",
             ],
             [
                 'slug' => 'task_delegated',
@@ -188,12 +138,6 @@ class SystemConfigSeeder extends Seeder
                 'name' => 'Resumen diario de tareas',
                 'subject' => 'Resumen diario de tareas - {date}',
                 'body' => "{summary_content}",
-            ],
-            [
-                'slug' => 'inactivity_alert',
-                'name' => 'Alerta por inactividad',
-                'subject' => 'Alerta: Tareas sin avance desde hace {inactivity_days} días',
-                'body' => "Tienes tareas sin reportar avance en los últimos {inactivity_days} días:\n\n{task_list}\n\nPor favor actualiza el estado de estas tareas.",
             ],
             [
                 'slug' => 'task_cancelled',

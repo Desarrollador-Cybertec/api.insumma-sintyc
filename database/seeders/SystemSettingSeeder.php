@@ -40,13 +40,6 @@ class SystemSettingSeeder extends Seeder
                 'description' => 'Enviar alerta el día de vencimiento',
             ],
             [
-                'key'         => 'alert_overdue',
-                'value'       => '1',
-                'type'        => 'boolean',
-                'group'       => 'notifications',
-                'description' => 'Enviar alerta cuando una tarea esté vencida',
-            ],
-            [
                 'key'         => 'copy_to_manager',
                 'value'       => '1',
                 'type'        => 'boolean',
@@ -70,20 +63,6 @@ class SystemSettingSeeder extends Seeder
 
             // ── automation ─────────────────────────────────────────────────
             [
-                'key'         => 'detect_overdue_enabled',
-                'value'       => '1',
-                'type'        => 'boolean',
-                'group'       => 'automation',
-                'description' => 'Activar detección automática de tareas vencidas',
-            ],
-            [
-                'key'         => 'detect_overdue_time',
-                'value'       => '06:00',
-                'type'        => 'string',
-                'group'       => 'automation',
-                'description' => 'Hora de ejecución de detección de vencidas (HH:MM)',
-            ],
-            [
                 'key'         => 'daily_summary_time',
                 'value'       => '07:00',
                 'type'        => 'string',
@@ -103,27 +82,6 @@ class SystemSettingSeeder extends Seeder
                 'type'        => 'string',
                 'group'       => 'automation',
                 'description' => 'Hora de envío de recordatorios (HH:MM)',
-            ],
-            [
-                'key'         => 'inactivity_alert_enabled',
-                'value'       => '1',
-                'type'        => 'boolean',
-                'group'       => 'automation',
-                'description' => 'Activar alertas por inactividad (tareas sin avance)',
-            ],
-            [
-                'key'         => 'inactivity_alert_days',
-                'value'       => '7',
-                'type'        => 'integer',
-                'group'       => 'automation',
-                'description' => 'Días sin avance para generar alerta de inactividad',
-            ],
-            [
-                'key'         => 'inactivity_alert_time',
-                'value'       => '09:00',
-                'type'        => 'string',
-                'group'       => 'automation',
-                'description' => 'Hora de ejecución de detección de inactividad (HH:MM)',
             ],
         ];
 

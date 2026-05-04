@@ -45,6 +45,9 @@ class TaskDueSoonNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $dueDate = $this->task->due_date?->toDateString() ?? 'Sin fecha';
+        $duePhrase = $this->daysRemaining === 0
+            ? 'hoy'
+            : "en {$this->daysRemaining} día(s)";
 
         return app(NotificationSettingsService::class)->buildMailMessage(
             'task_reminder',
@@ -52,10 +55,11 @@ class TaskDueSoonNotification extends Notification implements ShouldQueue
                 'task_title'     => $this->task->title,
                 'user_name'      => $notifiable->name,
                 'days_remaining' => $this->daysRemaining,
+                'due_phrase'     => $duePhrase,
                 'due_date'       => $dueDate,
             ],
-            "Recordatorio: \"{$this->task->title}\" vence pronto",
-            "La tarea \"{$this->task->title}\" vence en {$this->daysRemaining} día(s).\n\nFecha límite: {$dueDate}"
+            "Recordatorio: \"{$this->task->title}\" vence {$duePhrase}",
+            "La tarea \"{$this->task->title}\" vence {$duePhrase}.\n\nFecha límite: {$dueDate}"
         );
     }
 

@@ -7,15 +7,13 @@ use App\Models\SystemSetting;
 use App\Models\Task;
 use App\Models\User;
 use App\Notifications\TaskDueSoonNotification;
-use App\Notifications\TaskOverdueNotification;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 
 class SendDueReminders extends Command
 {
     protected $signature = 'tasks:send-due-reminders';
 
-    protected $description = 'Send reminders for tasks due soon or overdue with notify flags enabled';
+    protected $description = 'Send a single reminder on the task due date';
 
     public function handle(): int
     {
@@ -25,56 +23,49 @@ class SendDueReminders extends Command
         }
 
         $count = 0;
-        $alertDays = SystemSetting::getValue('alert_days_before_due', 3);
 
-        // Due today or in N days with notify_on_due
-        $dueSoon = Task::where('notify_on_due', true)
+        $dueToday = Task::where(function ($query) {
+                $query->where('notify_on_due', true)
+                    ->orWhere('notify_on_overdue', true);
+            })
             ->whereNotIn('status', [
                 TaskStatusEnum::COMPLETED->value,
                 TaskStatusEnum::CANCELLED->value,
             ])
             ->whereNotNull('due_date')
-            ->where('due_date', '>=', now()->startOfDay())
-            ->where('due_date', '<=', now()->addDays($alertDays)->endOfDay())
+            ->whereDate('due_date', now()->toDateString())
             ->whereNotNull('current_responsible_user_id')
+            ->with('currentResponsible')
             ->get();
 
-        foreach ($dueSoon as $task) {
-            $user = User::find($task->current_responsible_user_id);
-            if (!$user) continue;
+        foreach ($dueToday as $task) {
+            $user = $task->currentResponsible;
+            if (!$user instanceof User) {
+                continue;
+            }
 
-            $daysLeft = (int) now()->startOfDay()->diffInDays($task->due_date, false);
-            $user->notify(new TaskDueSoonNotification($task, $daysLeft));
-            $count++;
-        }
+            if ($this->alreadySentToday($user, $task)) {
+                continue;
+            }
 
-        // Overdue with notify_on_overdue
-        $overdue = Task::where('notify_on_overdue', true)
-            ->whereNotIn('status', [
-                TaskStatusEnum::COMPLETED->value,
-                TaskStatusEnum::CANCELLED->value,
-            ])
-            ->whereNotNull('due_date')
-            ->where('due_date', '<', now()->startOfDay())
-            ->whereNotNull('current_responsible_user_id')
-            ->get();
-
-        foreach ($overdue as $task) {
-            $user = User::find($task->current_responsible_user_id);
-            if (!$user) continue;
-
-            $daysOverdue = (int) $task->due_date->diffInDays(now());
-
-            // Notify on day 1 of being overdue, then every 3 days to avoid spam
-            $shouldNotify = $daysOverdue === 1 || ($daysOverdue > 1 && ($daysOverdue - 1) % 3 === 0);
-            if (!$shouldNotify) continue;
-
-            $user->notify(new TaskOverdueNotification($task, $daysOverdue));
+            $user->notify(new TaskDueSoonNotification($task, 0));
             $count++;
         }
 
         $this->info("Se enviaron {$count} recordatorios.");
 
         return self::SUCCESS;
+    }
+
+    private function alreadySentToday(User $user, Task $task): bool
+    {
+        return $user->notifications()
+            ->where('type', TaskDueSoonNotification::class)
+            ->whereDate('created_at', now()->toDateString())
+            ->get()
+            ->contains(function ($notification) use ($task) {
+                return ($notification->data['task_id'] ?? null) === $task->id
+                    && ($notification->data['due_date'] ?? null) === $task->due_date?->toDateString();
+            });
     }
 }

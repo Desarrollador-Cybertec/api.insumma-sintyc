@@ -6,15 +6,14 @@ use App\Enums\TaskStatusEnum;
 use App\Models\ActivityLog;
 use App\Models\SystemSetting;
 use App\Models\Task;
-use App\Models\TaskStatusHistory;
 use App\Models\User;
 use App\Notifications\DailyTaskSummaryNotification;
 use App\Notifications\TaskDueSoonNotification;
-use App\Notifications\TaskInactivityNotification;
-use App\Notifications\TaskOverdueNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class AutomationController extends Controller
 {
@@ -39,67 +38,6 @@ class AutomationController extends Controller
         }
 
         abort(403);
-    }
-
-    /**
-     * Manually trigger overdue detection.
-     */
-    public function triggerOverdueDetection(Request $request): JsonResponse
-    {
-        $areaIds = $this->resolveAreaScope($request);
-        $user = $request->user();
-
-        if ($areaIds === null) {
-            Artisan::call('tasks:detect-overdue');
-            $output = trim(Artisan::output());
-        } else {
-            if (!SystemSetting::getValue('detect_overdue_enabled', true)) {
-                return response()->json([
-                    'message' => 'La detección de tareas vencidas está desactivada.',
-                ], 422);
-            }
-
-            $tasks = Task::where('due_date', '<', now())
-                ->whereIn('area_id', $areaIds)
-                ->whereNotIn('status', [
-                    TaskStatusEnum::COMPLETED->value,
-                    TaskStatusEnum::CANCELLED->value,
-                    TaskStatusEnum::OVERDUE->value,
-                ])
-                ->get();
-
-            $count = 0;
-            foreach ($tasks as $task) {
-                if (!$task->status->canTransitionTo(TaskStatusEnum::OVERDUE)) {
-                    continue;
-                }
-                $oldStatus = $task->status;
-                $task->update(['status' => TaskStatusEnum::OVERDUE]);
-                TaskStatusHistory::create([
-                    'task_id' => $task->id,
-                    'changed_by' => $user->id,
-                    'user_id' => $task->current_responsible_user_id,
-                    'from_status' => $oldStatus,
-                    'to_status' => TaskStatusEnum::OVERDUE,
-                    'note' => 'Marcada como vencida manualmente por encargado',
-                ]);
-                $count++;
-            }
-
-            $output = "Se marcaron {$count} tareas como vencidas en tu área.";
-        }
-
-        ActivityLog::create([
-            'user_id' => $user->id,
-            'module' => 'automation',
-            'action' => 'trigger_overdue_detection',
-            'description' => 'Detección de tareas vencidas ejecutada manualmente',
-        ]);
-
-        return response()->json([
-            'message' => 'Detección de tareas vencidas ejecutada correctamente',
-            'output' => $output,
-        ]);
     }
 
     /**
@@ -129,7 +67,7 @@ class AutomationController extends Controller
                 ])
                 ->whereNotNull('current_responsible_user_id')
                 ->whereIn('area_id', $areaIds)
-                ->with(['currentResponsible', 'updates'])
+                ->with('currentResponsible')
                 ->get()
                 ->groupBy('current_responsible_user_id');
 
@@ -140,26 +78,15 @@ class AutomationController extends Controller
                     continue;
                 }
 
-                $overdue = $tasks->filter(fn ($t) => $t->isOverdue());
-                $dueSoon = $tasks->filter(fn ($t) => $t->due_date && $t->due_date->isFuture() && $t->due_date->diffInDays(now()) <= $alertDays);
-                $withoutUpdates = $tasks->filter(fn ($t) => $t->updates->isEmpty());
-
-                $lines = ["Resumen para {$responsible->name}:", "Total pendientes: {$tasks->count()}"];
-                if ($overdue->isNotEmpty()) {
-                    $lines[] = "Vencidas: {$overdue->count()}";
-                }
-                if ($dueSoon->isNotEmpty()) {
-                    $lines[] = "Próximas a vencer ({$alertDays}d): {$dueSoon->count()}";
-                }
-                if ($withoutUpdates->isNotEmpty()) {
-                    $lines[] = "Sin avance reportado: {$withoutUpdates->count()}";
-                }
+                ['dueSoon' => $dueSoon, 'notStarted' => $notStarted, 'overdue' => $overdue] = $this->buildSummaryBuckets($tasks, $alertDays);
+                $summaryContent = $this->buildSummaryMessage($responsible, $tasks, $dueSoon, $notStarted, $overdue, $alertDays);
 
                 $responsible->notify(new DailyTaskSummaryNotification(
-                    summaryContent: implode("\n", $lines),
+                    summaryContent: $summaryContent,
                     totalPending: $tasks->count(),
                     overdueCount: $overdue->count(),
                     dueSoonCount: $dueSoon->count(),
+                    notStartedCount: $notStarted->count(),
                 ));
                 $count++;
             }
@@ -199,52 +126,38 @@ class AutomationController extends Controller
             Artisan::call('tasks:send-due-reminders');
             $output = trim(Artisan::output());
         } else {
-            $alertDays = SystemSetting::getValue('alert_days_before_due', 3);
             $count = 0;
 
-            $dueSoon = Task::where('notify_on_due', true)
+            $dueToday = Task::where(function ($query) {
+                    $query->where('notify_on_due', true)
+                        ->orWhere('notify_on_overdue', true);
+                })
                 ->whereNotIn('status', [TaskStatusEnum::COMPLETED->value, TaskStatusEnum::CANCELLED->value])
                 ->whereNotNull('due_date')
-                ->where('due_date', '>=', now()->startOfDay())
-                ->where('due_date', '<=', now()->addDays($alertDays)->endOfDay())
+                ->whereDate('due_date', now()->toDateString())
                 ->whereNotNull('current_responsible_user_id')
                 ->whereIn('area_id', $areaIds)
+                ->with('currentResponsible')
                 ->get();
 
-            foreach ($dueSoon as $task) {
-                $responsible = User::find($task->current_responsible_user_id);
-                if (!$responsible) continue;
+            foreach ($dueToday as $task) {
+                $responsible = $task->currentResponsible;
+                if (!$responsible instanceof User || $this->alreadySentDueReminderToday($responsible, $task)) {
+                    continue;
+                }
 
-                $daysLeft = (int) now()->startOfDay()->diffInDays($task->due_date, false);
-                $responsible->notify(new TaskDueSoonNotification($task, $daysLeft));
+                $responsible->notify(new TaskDueSoonNotification($task, 0));
                 $count++;
             }
 
-            $overdue = Task::where('notify_on_overdue', true)
-                ->whereNotIn('status', [TaskStatusEnum::COMPLETED->value, TaskStatusEnum::CANCELLED->value])
-                ->whereNotNull('due_date')
-                ->where('due_date', '<', now()->startOfDay())
-                ->whereNotNull('current_responsible_user_id')
-                ->whereIn('area_id', $areaIds)
-                ->get();
-
-            foreach ($overdue as $task) {
-                $responsible = User::find($task->current_responsible_user_id);
-                if (!$responsible) continue;
-
-                $daysOverdue = (int) $task->due_date->diffInDays(now());
-                $responsible->notify(new TaskOverdueNotification($task, $daysOverdue));
-                $count++;
-            }
-
-            $output = "Se enviaron {$count} recordatorios para tu área.";
+            $output = "Se enviaron {$count} recordatorios de vencimiento para tu área.";
         }
 
         ActivityLog::create([
             'user_id' => $user->id,
             'module' => 'automation',
             'action' => 'trigger_due_reminders',
-            'description' => 'Recordatorios de vencimiento enviados manualmente',
+            'description' => 'Recordatorios del día de vencimiento enviados manualmente',
         ]);
 
         return response()->json([
@@ -253,85 +166,74 @@ class AutomationController extends Controller
         ]);
     }
 
-    /**
-     * Manually trigger inactivity detection.
-     */
-    public function triggerInactivityDetection(Request $request): JsonResponse
+    private function buildSummaryBuckets(Collection $tasks, int $alertDays): array
     {
-        $areaIds = $this->resolveAreaScope($request);
-        $user = $request->user();
+        $today = now()->startOfDay();
+        $windowEnd = $today->copy()->addDays($alertDays);
 
-        $enabled = SystemSetting::getValue('inactivity_alert_enabled', true);
-        if (!$enabled) {
-            return response()->json([
-                'message' => 'Las alertas de inactividad están desactivadas. Actívelas en configuración.',
-            ], 422);
+        return [
+            'dueSoon' => $tasks->filter(fn (Task $task) => $this->isDueSoon($task, $today, $windowEnd)),
+            'notStarted' => $tasks->filter(fn (Task $task) => $task->status === TaskStatusEnum::PENDING),
+            'overdue' => $tasks->filter(fn (Task $task) => $this->isOverdue($task, $today)),
+        ];
+    }
+
+    private function buildSummaryMessage(User $user, Collection $tasks, Collection $dueSoon, Collection $notStarted, Collection $overdue, int $alertDays): string
+    {
+        $lines = ["Resumen diario para {$user->name}:"];
+        $lines[] = "Total activas: {$tasks->count()}";
+        $lines[] = "Por vencer ({$alertDays} días): {$dueSoon->count()}";
+        $lines[] = "Sin empezar: {$notStarted->count()}";
+        $lines[] = "Vencidas: {$overdue->count()}";
+        $lines[] = '';
+
+        if ($dueSoon->isEmpty()) {
+            $lines[] = "No hay tareas por vencer en los próximos {$alertDays} días.";
+            return implode("\n", $lines);
         }
 
-        if ($areaIds === null) {
-            Artisan::call('tasks:detect-inactive');
-            $output = trim(Artisan::output());
-        } else {
-            $inactivityDays = SystemSetting::getValue('inactivity_alert_days', 7);
-            $cutoff = now()->subDays($inactivityDays);
+        $lines[] = 'Detalle de tareas por vencer:';
 
-            $inactiveTasks = Task::whereIn('status', [
-                    TaskStatusEnum::IN_PROGRESS->value,
-                    TaskStatusEnum::PENDING->value,
-                ])
-                ->whereNotNull('current_responsible_user_id')
-                ->whereIn('area_id', $areaIds)
-                ->with('latestUpdate')
-                ->where(function ($query) use ($cutoff) {
-                    $query->where(function ($q) use ($cutoff) {
-                        $q->whereHas('updates')
-                          ->whereDoesntHave('updates', fn ($sub) => $sub->where('created_at', '>=', $cutoff));
-                    })->orWhere(function ($q) use ($cutoff) {
-                        $q->whereDoesntHave('updates')
-                          ->where('created_at', '<', $cutoff);
-                    });
-                })
-                ->get();
-
-            $grouped = $inactiveTasks->groupBy('current_responsible_user_id');
-            $count = 0;
-
-            foreach ($grouped as $userId => $tasks) {
-                $responsible = User::find($userId);
-                if (!$responsible) continue;
-
-                $taskData = $tasks->map(function ($task) {
-                    $lastUpdate = $task->latestUpdate;
-                    $daysSince = $lastUpdate
-                        ? (int) $lastUpdate->created_at->diffInDays(now())
-                        : (int) $task->created_at->diffInDays(now());
-
-                    return [
-                        'task_id' => $task->id,
-                        'task_title' => $task->title,
-                        'days_inactive' => $daysSince,
-                        'due_date' => $task->due_date?->toDateString(),
-                    ];
-                });
-
-                $responsible->notify(new TaskInactivityNotification($taskData, $inactivityDays));
-                $count++;
-            }
-
-            $output = "Se enviaron alertas de inactividad a {$count} usuarios de tu área.";
+        foreach ($dueSoon->sortBy('due_date')->take(15) as $task) {
+            $status = $task->status->value;
+            $due = $task->due_date ? $task->due_date->toDateString() : 'Sin fecha';
+            $lines[] = "- {$task->title} (Estado: {$status}, vence: {$due})";
         }
 
-        ActivityLog::create([
-            'user_id' => $user->id,
-            'module' => 'automation',
-            'action' => 'trigger_inactivity_detection',
-            'description' => 'Detección de inactividad ejecutada manualmente',
-        ]);
+        if ($dueSoon->count() > 15) {
+            $remaining = $dueSoon->count() - 15;
+            $lines[] = "... y {$remaining} tarea(s) por vencer más.";
+        }
 
-        return response()->json([
-            'message' => 'Detección de inactividad ejecutada correctamente',
-            'output' => $output,
-        ]);
+        return implode("\n", $lines);
+    }
+
+    private function isDueSoon(Task $task, Carbon $today, Carbon $windowEnd): bool
+    {
+        $dueDate = $task->due_date?->copy()->startOfDay();
+
+        return $dueDate !== null
+            && $dueDate->greaterThanOrEqualTo($today)
+            && $dueDate->lessThanOrEqualTo($windowEnd);
+    }
+
+    private function isOverdue(Task $task, Carbon $today): bool
+    {
+        $dueDate = $task->due_date?->copy()->startOfDay();
+
+        return $dueDate !== null && $dueDate->lt($today);
+    }
+
+    private function alreadySentDueReminderToday(User $user, Task $task): bool
+    {
+        return $user->notifications()
+            ->where('type', TaskDueSoonNotification::class)
+            ->whereDate('created_at', now()->toDateString())
+            ->get()
+            ->contains(function ($notification) use ($task) {
+                return ($notification->data['task_id'] ?? null) === $task->id
+                    && ($notification->data['due_date'] ?? null) === $task->due_date?->toDateString();
+            });
     }
 }
 

@@ -6,6 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class SystemSetting extends Model
 {
+    private const RETIRED_KEYS = [
+        'alert_overdue',
+        'detect_overdue_enabled',
+        'detect_overdue_time',
+        'inactivity_alert_enabled',
+        'inactivity_alert_days',
+        'inactivity_alert_time',
+    ];
+
     protected $fillable = [
         'key',
         'value',
@@ -80,9 +89,15 @@ class SystemSetting extends Model
     public static function getGroup(string $group): array
     {
         return static::where('group', $group)
+            ->whereNotIn('key', static::retiredKeys())
             ->get()
             ->mapWithKeys(fn (self $s) => [$s->key => $s->castValue()])
             ->toArray();
+    }
+
+    public static function retiredKeys(): array
+    {
+        return self::RETIRED_KEYS;
     }
 
     /**

@@ -84,10 +84,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/message-templates/{messageTemplate}', [MessageTemplateController::class, 'destroy']);
 
     // Automation triggers (superadmin)
-    Route::post('/automation/detect-overdue', [AutomationController::class, 'triggerOverdueDetection']);
     Route::post('/automation/send-summary', [AutomationController::class, 'triggerDailySummary']);
     Route::post('/automation/send-reminders', [AutomationController::class, 'triggerDueReminders']);
-    Route::post('/automation/detect-inactivity', [AutomationController::class, 'triggerInactivityDetection']);
 
     // Import (superadmin)
     Route::post('/import/tasks', [ImportController::class, 'importTasks']);

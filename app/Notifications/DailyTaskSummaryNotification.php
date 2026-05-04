@@ -19,6 +19,7 @@ class DailyTaskSummaryNotification extends Notification implements ShouldQueue
         public int $totalPending,
         public int $overdueCount,
         public int $dueSoonCount,
+        public int $notStartedCount,
     ) {}
 
     public function via(object $notifiable): array
@@ -32,9 +33,12 @@ class DailyTaskSummaryNotification extends Notification implements ShouldQueue
             'type' => 'daily_summary',
             'category' => 'summary',
             'total_pending' => $this->totalPending,
+            'total_active' => $this->totalPending,
             'overdue_count' => $this->overdueCount,
             'due_soon_count' => $this->dueSoonCount,
-            'message' => "Resumen diario: {$this->totalPending} pendientes, {$this->overdueCount} vencidas, {$this->dueSoonCount} próximas a vencer.",
+            'not_started_count' => $this->notStartedCount,
+            'summary_content' => $this->summaryContent,
+            'message' => "Resumen diario: {$this->totalPending} activas, {$this->dueSoonCount} por vencer, {$this->notStartedCount} sin empezar, {$this->overdueCount} vencidas.",
         ];
     }
 

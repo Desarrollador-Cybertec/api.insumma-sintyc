@@ -19,7 +19,8 @@ class SystemSettingController extends Controller
     {
         $this->authorize('viewAny', SystemSetting::class);
 
-        $query = SystemSetting::query();
+        $query = SystemSetting::query()
+            ->whereNotIn('key', SystemSetting::retiredKeys());
 
         if ($group = $request->query('group')) {
             $query->where('group', $group);
@@ -69,7 +70,11 @@ class SystemSettingController extends Controller
         }
 
         // Return fresh grouped settings so the client can update its state
-        $settings = SystemSetting::query()->orderBy('group')->orderBy('key')->get();
+        $settings = SystemSetting::query()
+            ->whereNotIn('key', SystemSetting::retiredKeys())
+            ->orderBy('group')
+            ->orderBy('key')
+            ->get();
 
         $grouped = $settings->groupBy('group')->map(
             fn ($items) => SystemSettingResource::collection($items)

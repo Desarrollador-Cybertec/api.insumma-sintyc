@@ -565,7 +565,7 @@ class NotificationEventsTest extends TestCase
 
     // ── TaskStarted ──
 
-    public function test_start_task_notifies_assigner(): void
+    public function test_start_task_does_not_send_individual_notification(): void
     {
         Notification::fake();
 
@@ -584,7 +584,7 @@ class NotificationEventsTest extends TestCase
                 'comment' => 'Inicio la tarea',
             ]);
 
-        Notification::assertSentTo($this->admin, \App\Notifications\TaskStartedNotification::class);
+        Notification::assertNotSentTo($this->admin, \App\Notifications\TaskStartedNotification::class);
         Notification::assertNotSentTo($this->worker, \App\Notifications\TaskStartedNotification::class);
     }
 
@@ -632,7 +632,7 @@ class NotificationEventsTest extends TestCase
         Notification::assertNotSentTo($this->worker, \App\Notifications\TaskStartedNotification::class);
     }
 
-    public function test_start_task_skips_notification_when_assignment_start_option_is_disabled(): void
+    public function test_start_task_with_assignment_start_option_disabled_still_sends_no_notification(): void
     {
         Notification::fake();
 

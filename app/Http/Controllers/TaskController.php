@@ -33,6 +33,7 @@ use App\Services\TaskStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class TaskController extends Controller
@@ -66,6 +67,19 @@ class TaskController extends Controller
                         $q->where('current_responsible_user_id', $user->id)
                           ->whereNotIn('status', $terminalStatuses);
                     });
+
+                    // 3. PENDING_ASSIGNMENT tasks in areas where user is an active member
+                    // so they can claim or be delegated the task
+                    $userAreaIds = DB::table('area_members')
+                        ->where('user_id', $user->id)
+                        ->where('is_active', true)
+                        ->pluck('area_id');
+                    if ($userAreaIds->isNotEmpty()) {
+                        $query->orWhere(function ($q) use ($userAreaIds) {
+                            $q->whereIn('area_id', $userAreaIds)
+                              ->where('status', \App\Enums\TaskStatusEnum::PENDING_ASSIGNMENT->value);
+                        });
+                    }
 
                     if ($user->isManagerLevel()) {
                         // 3. Non-worker-created tasks in areas the manager currently manages

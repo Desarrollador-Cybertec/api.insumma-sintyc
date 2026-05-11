@@ -115,7 +115,10 @@ class TaskPolicy
             // Cross-area: allow if the current responsible belongs to one of the manager's areas
             || $this->isManagerOfUserArea($user, $task->current_responsible_user_id)
             // Creator of the task can delegate it
-            || ($user->isManagerLevel() && $task->created_by === $user->id);
+            || ($user->isManagerLevel() && $task->created_by === $user->id)
+            // Area leader (manager-level member) can delegate tasks not yet claimed
+            || (is_null($task->current_responsible_user_id)
+                && $this->isManagerLevelMemberOfArea($user, $task->area_id));
     }
 
     public function start(User $user, Task $task): bool
@@ -247,7 +250,12 @@ class TaskPolicy
         }
 
         // Creator of the task can claim it
-        return $user->isManagerLevel() && $task->created_by === $user->id;
+        if ($user->isManagerLevel() && $task->created_by === $user->id) {
+            return true;
+        }
+
+        // Any active member of the area can claim a task that no one has taken yet
+        return $task->area_id && $user->belongsToArea($task->area_id);
     }
 
     public function delete(User $user, Task $task): bool

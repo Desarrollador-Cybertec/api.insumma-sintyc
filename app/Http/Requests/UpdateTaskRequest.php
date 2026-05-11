@@ -43,21 +43,23 @@ class UpdateTaskRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => ['sometimes', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:5000'],
-            'priority' => ['sometimes', Rule::enum(TaskPriorityEnum::class)],
-            'requires_attachment' => ['sometimes', 'boolean'],
-            'requires_completion_comment' => ['sometimes', 'boolean'],
-            'requires_manager_approval' => ['sometimes', 'boolean'],
+            'title'                          => ['sometimes', 'string', 'max:255'],
+            'description'                    => ['nullable', 'string', 'max:5000'],
+            'priority'                       => ['sometimes', Rule::enum(TaskPriorityEnum::class)],
+            'start_date'                     => ['sometimes', 'nullable', 'date'],
+            'due_date'                       => ['sometimes', 'nullable', 'date', 'after_or_equal:start_date'],
+            'requires_attachment'            => ['sometimes', 'boolean'],
+            'requires_completion_comment'    => ['sometimes', 'boolean'],
+            'requires_manager_approval'      => ['sometimes', 'boolean'],
             'requires_completion_notification' => ['sometimes', 'boolean'],
-            'requires_due_date' => ['sometimes', 'boolean'],
-            'requires_progress_report' => ['sometimes', 'boolean'],
-            'notify_on_due' => ['sometimes', 'boolean'],
-            'notify_on_overdue' => ['sometimes', 'boolean'],
-            'notify_on_completion' => ['sometimes', 'boolean'],
-            'notify_on_assignment_start' => ['sometimes', 'boolean'],
-            'notify_on_review_completion' => ['sometimes', 'boolean'],
-            'notify_on_due_overdue' => ['sometimes', 'boolean'],
+            'requires_due_date'              => ['sometimes', 'boolean'],
+            'requires_progress_report'       => ['sometimes', 'boolean'],
+            'notify_on_due'                  => ['sometimes', 'boolean'],
+            'notify_on_overdue'              => ['sometimes', 'boolean'],
+            'notify_on_completion'           => ['sometimes', 'boolean'],
+            'notify_on_assignment_start'     => ['sometimes', 'boolean'],
+            'notify_on_review_completion'    => ['sometimes', 'boolean'],
+            'notify_on_due_overdue'          => ['sometimes', 'boolean'],
         ];
     }
 }

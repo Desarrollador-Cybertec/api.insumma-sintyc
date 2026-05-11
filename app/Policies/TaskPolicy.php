@@ -93,16 +93,11 @@ class TaskPolicy
             return !$this->isForeignPersonalTask($user, $task);
         }
 
-        if ($task->area_id && $user->isManagerOfArea($task->area_id)) {
-            return true;
-        }
-
-        // Workers can edit their own personal tasks (no area)
-        if (is_null($task->area_id) && $task->created_by === $user->id) {
-            return true;
-        }
-
-        return false;
+        // For all other roles: only the original creator or the last delegator
+        // may modify task fields. The current responsible/executor cannot alter
+        // the conditions set by whoever assigned or delegated the commitment.
+        return $task->created_by === $user->id
+            || $task->delegated_by === $user->id;
     }
 
     public function delegate(User $user, Task $task): bool

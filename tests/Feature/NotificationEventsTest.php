@@ -174,7 +174,8 @@ class NotificationEventsTest extends TestCase
 
         $task = Task::create([
             'title' => 'Tarea en revisión',
-            'created_by' => $this->admin->id,
+            // El creador/asignador (jefe de área) es quien revisa la tarea.
+            'created_by' => $this->manager->id,
             'current_responsible_user_id' => $this->worker->id,
             'area_id' => $this->area->id,
             'status' => TaskStatusEnum::IN_REVIEW,
@@ -197,7 +198,8 @@ class NotificationEventsTest extends TestCase
 
         $task = Task::create([
             'title' => 'Tarea en revisión',
-            'created_by' => $this->admin->id,
+            // El creador/asignador (jefe de área) es quien revisa la tarea.
+            'created_by' => $this->manager->id,
             'current_responsible_user_id' => $this->worker->id,
             'area_id' => $this->area->id,
             'status' => TaskStatusEnum::IN_REVIEW,
@@ -377,7 +379,8 @@ class NotificationEventsTest extends TestCase
 
         $task = Task::create([
             'title' => 'Tarea en revisión',
-            'created_by' => $this->admin->id,
+            // El creador/asignador (jefe de área) es quien aprueba.
+            'created_by' => $this->manager->id,
             'current_responsible_user_id' => $this->worker->id,
             'area_id' => $this->area->id,
             'status' => TaskStatusEnum::IN_REVIEW,
@@ -402,7 +405,8 @@ class NotificationEventsTest extends TestCase
 
         $task = Task::create([
             'title' => 'Tarea en revisión',
-            'created_by' => $this->admin->id,
+            // El creador/asignador (jefe de área) es quien rechaza.
+            'created_by' => $this->manager->id,
             'current_responsible_user_id' => $this->worker->id,
             'area_id' => $this->area->id,
             'status' => TaskStatusEnum::IN_REVIEW,
@@ -526,7 +530,8 @@ class NotificationEventsTest extends TestCase
 
         $task = Task::create([
             'title' => 'Tarea de área',
-            'created_by' => $this->admin->id,
+            // El creador/asignador (jefe de área) es quien aprueba.
+            'created_by' => $this->manager->id,
             'current_responsible_user_id' => $this->worker->id,
             'area_id' => $this->area->id,
             'status' => TaskStatusEnum::IN_REVIEW,

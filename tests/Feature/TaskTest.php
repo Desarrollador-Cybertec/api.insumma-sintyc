@@ -460,7 +460,8 @@ class TaskTest extends TestCase
     {
         $task = Task::create([
             'title' => 'En revisión',
-            'created_by' => $this->admin->id,
+            // El creador/asignador (aquí el jefe de área) es quien aprueba.
+            'created_by' => $this->manager->id,
             'current_responsible_user_id' => $this->worker->id,
             'area_id' => $this->area->id,
             'status' => TaskStatusEnum::IN_REVIEW,
@@ -479,7 +480,8 @@ class TaskTest extends TestCase
     {
         $task = Task::create([
             'title' => 'Rechazada',
-            'created_by' => $this->admin->id,
+            // El creador/asignador (aquí el jefe de área) es quien rechaza.
+            'created_by' => $this->manager->id,
             'current_responsible_user_id' => $this->worker->id,
             'area_id' => $this->area->id,
             'status' => TaskStatusEnum::IN_REVIEW,
@@ -498,7 +500,8 @@ class TaskTest extends TestCase
     {
         $task = Task::create([
             'title' => 'Rechazada sin nota',
-            'created_by' => $this->admin->id,
+            // Creador = quien rechaza, para que la validación (no la autorización) sea lo que falle.
+            'created_by' => $this->manager->id,
             'area_id' => $this->area->id,
             'status' => TaskStatusEnum::IN_REVIEW,
         ]);
@@ -508,6 +511,92 @@ class TaskTest extends TestCase
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['note']);
+    }
+
+    public function test_non_creator_manager_cannot_approve_task(): void
+    {
+        // Un jefe de área que NO creó la tarea ya no puede aprobarla (solo el creador o un admin).
+        $task = Task::create([
+            'title' => 'Revisión ajena',
+            'created_by' => $this->admin->id,
+            'current_responsible_user_id' => $this->worker->id,
+            'area_id' => $this->area->id,
+            'status' => TaskStatusEnum::IN_REVIEW,
+        ]);
+
+        $response = $this->actingAs($this->manager, 'sanctum')
+            ->postJson("/api/tasks/{$task->id}/approve", [
+                'note' => 'Intento de aprobación',
+            ]);
+
+        $response->assertForbidden();
+        $this->assertEquals(TaskStatusEnum::IN_REVIEW, $task->fresh()->status);
+    }
+
+    public function test_superadmin_can_approve_task_they_did_not_create(): void
+    {
+        // El override de administración se mantiene: un admin aprueba aunque no sea el creador.
+        $task = Task::create([
+            'title' => 'Revisión admin',
+            'created_by' => $this->manager->id,
+            'current_responsible_user_id' => $this->worker->id,
+            'area_id' => $this->area->id,
+            'status' => TaskStatusEnum::IN_REVIEW,
+        ]);
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->postJson("/api/tasks/{$task->id}/approve", [
+                'note' => 'Aprobado por admin',
+            ]);
+
+        $response->assertOk();
+        $this->assertEquals(TaskStatusEnum::COMPLETED, $task->fresh()->status);
+    }
+
+    public function test_reject_preserves_progress(): void
+    {
+        // Rechazar no debe reiniciar el avance acumulado (antes lo bajaba al default de 25).
+        $task = Task::create([
+            'title' => 'Casi lista',
+            'created_by' => $this->manager->id,
+            'current_responsible_user_id' => $this->worker->id,
+            'area_id' => $this->area->id,
+            'status' => TaskStatusEnum::IN_REVIEW,
+            'progress_percent' => 90,
+        ]);
+
+        $response = $this->actingAs($this->manager, 'sanctum')
+            ->postJson("/api/tasks/{$task->id}/reject", [
+                'note' => 'Ajustar detalles',
+            ]);
+
+        $response->assertOk();
+        $fresh = $task->fresh();
+        $this->assertEquals(TaskStatusEnum::REJECTED, $fresh->status);
+        $this->assertEquals(90, $fresh->progress_percent);
+    }
+
+    public function test_progress_is_preserved_while_correcting_rejected_task(): void
+    {
+        // Al retomar una tarea rechazada (REJECTED -> IN_PROGRESS) el avance tampoco se reinicia.
+        $task = Task::create([
+            'title' => 'En corrección',
+            'created_by' => $this->manager->id,
+            'current_responsible_user_id' => $this->worker->id,
+            'area_id' => $this->area->id,
+            'status' => TaskStatusEnum::REJECTED,
+            'progress_percent' => 90,
+        ]);
+
+        $response = $this->actingAs($this->worker, 'sanctum')
+            ->postJson("/api/tasks/{$task->id}/start", [
+                'comment' => 'Retomando correcciones',
+            ]);
+
+        $response->assertOk();
+        $fresh = $task->fresh();
+        $this->assertEquals(TaskStatusEnum::IN_PROGRESS, $fresh->status);
+        $this->assertEquals(90, $fresh->progress_percent);
     }
 
     public function test_superadmin_can_cancel_task(): void

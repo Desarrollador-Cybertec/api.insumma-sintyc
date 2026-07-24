@@ -56,7 +56,7 @@ return [
 
     'logo_url' => env('APP_LOGO_URL', null),
 
-    'frontend_url' => env('FRONTEND_URL', 'https://app.cyberteconline.com'),
+    'frontend_url' => env('FRONTEND_URL', 'https://app.insumma.cyberteconline.com'),
 
     /*
     |--------------------------------------------------------------------------

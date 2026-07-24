@@ -183,20 +183,24 @@ class TaskPolicy
 
     public function approve(User $user, Task $task): bool
     {
+        // Override de administración (superadmin/gerente), sin tocar tareas personales ajenas.
         if ($user->isAdminLevel()) {
             return !$this->isForeignPersonalTask($user, $task);
         }
 
-        return $task->area_id && $user->isManagerOfArea($task->area_id);
+        // Solo quien creó y asignó la tarea puede revisarla (aprobar).
+        return $task->created_by === $user->id;
     }
 
     public function reject(User $user, Task $task): bool
     {
+        // Override de administración (superadmin/gerente), sin tocar tareas personales ajenas.
         if ($user->isAdminLevel()) {
             return !$this->isForeignPersonalTask($user, $task);
         }
 
-        return $task->area_id && $user->isManagerOfArea($task->area_id);
+        // Solo quien creó y asignó la tarea puede revisarla (rechazar).
+        return $task->created_by === $user->id;
     }
 
     public function cancel(User $user, Task $task): bool

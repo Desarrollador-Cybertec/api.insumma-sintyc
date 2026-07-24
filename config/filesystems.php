@@ -68,7 +68,7 @@ return [
             'endpoint'                => env('SUPABASE_S3_ENDPOINT'),
             'url'                     => env('SUPABASE_S3_URL'),
             'use_path_style_endpoint' => env('SUPABASE_S3_USE_PATH_STYLE_ENDPOINT', true),
-            'throw'                   => false,
+            'throw'                   => true,
         ],
 
     ],

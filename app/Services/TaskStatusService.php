@@ -28,9 +28,17 @@ class TaskStatusService
             $oldStatus = $task->status;
 
             $updateData = [
-                'status'           => $newStatus,
-                'progress_percent' => $newStatus->defaultProgress(),
+                'status' => $newStatus,
             ];
+
+            // No reiniciar el avance acumulado al rechazar ni mientras la tarea se corrige
+            // (REJECTED -> IN_PROGRESS). El resto de transiciones ajusta el avance al default del estado.
+            $preserveProgress = $newStatus === TaskStatusEnum::REJECTED
+                || $oldStatus === TaskStatusEnum::REJECTED;
+
+            if (!$preserveProgress) {
+                $updateData['progress_percent'] = $newStatus->defaultProgress();
+            }
 
             if ($newStatus === TaskStatusEnum::COMPLETED) {
                 $updateData['completed_at'] = now();

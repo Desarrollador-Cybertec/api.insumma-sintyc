@@ -21,10 +21,16 @@ try {
 
 $scheduleTimezone = config('app.schedule_timezone', config('app.timezone', 'UTC'));
 
+// Omitir el envío a colaboradores en fines de semana y festivos colombianos.
+// La fecha se evalúa en la zona horaria del scheduler (America/Bogota por defecto).
+$skipNonBusinessDay = fn () => ! is_business_day(now($scheduleTimezone));
+
 Schedule::command('tasks:send-daily-summary')
     ->dailyAt($canReadSettings ? SystemSetting::getValue('daily_summary_time', '07:00') : '07:00')
-    ->timezone($scheduleTimezone);
+    ->timezone($scheduleTimezone)
+    ->skip($skipNonBusinessDay);
 
 Schedule::command('tasks:send-due-reminders')
     ->dailyAt($canReadSettings ? SystemSetting::getValue('send_reminders_time', '08:00') : '08:00')
-    ->timezone($scheduleTimezone);
+    ->timezone($scheduleTimezone)
+    ->skip($skipNonBusinessDay);

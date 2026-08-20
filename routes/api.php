@@ -3,7 +3,6 @@
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\AutomationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\MeetingController;
@@ -82,10 +81,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/message-templates/{messageTemplate}', [MessageTemplateController::class, 'show']);
     Route::put('/message-templates/{messageTemplate}', [MessageTemplateController::class, 'update']);
     Route::delete('/message-templates/{messageTemplate}', [MessageTemplateController::class, 'destroy']);
-
-    // Automation triggers (superadmin)
-    Route::post('/automation/send-summary', [AutomationController::class, 'triggerDailySummary']);
-    Route::post('/automation/send-reminders', [AutomationController::class, 'triggerDueReminders']);
 
     // Import (superadmin)
     Route::post('/import/tasks', [ImportController::class, 'importTasks']);

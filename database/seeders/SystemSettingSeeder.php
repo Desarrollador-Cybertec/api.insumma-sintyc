@@ -19,20 +19,6 @@ class SystemSettingSeeder extends Seeder
                 'description' => 'Activar/desactivar envío de correos automáticos',
             ],
             [
-                'key'         => 'daily_summary_enabled',
-                'value'       => '1',
-                'type'        => 'boolean',
-                'group'       => 'notifications',
-                'description' => 'Activar/desactivar resumen diario de tareas',
-            ],
-            [
-                'key'         => 'alert_days_before_due',
-                'value'       => '3',
-                'type'        => 'integer',
-                'group'       => 'notifications',
-                'description' => 'Días antes del vencimiento para enviar alertas',
-            ],
-            [
                 'key'         => 'alert_on_due_date',
                 'value'       => '1',
                 'type'        => 'boolean',
@@ -62,27 +48,6 @@ class SystemSettingSeeder extends Seeder
             ],
 
             // ── automation ─────────────────────────────────────────────────
-            [
-                'key'         => 'daily_summary_time',
-                'value'       => '07:00',
-                'type'        => 'string',
-                'group'       => 'automation',
-                'description' => 'Hora de envío del resumen diario (HH:MM)',
-            ],
-            [
-                'key'         => 'send_reminders_enabled',
-                'value'       => '1',
-                'type'        => 'boolean',
-                'group'       => 'automation',
-                'description' => 'Activar envío automático de recordatorios',
-            ],
-            [
-                'key'         => 'send_reminders_time',
-                'value'       => '08:00',
-                'type'        => 'string',
-                'group'       => 'automation',
-                'description' => 'Hora de envío de recordatorios (HH:MM)',
-            ],
         ];
 
         foreach ($settings as $setting) {

@@ -42,13 +42,6 @@ class MessageTemplateSeeder extends Seeder
                 'subject' => 'Tu tarea "{task_title}" necesita correcciones',
                 'body'    => "La tarea \"{task_title}\" ha sido rechazada y requiere correcciones.\n\nMotivo: {rejection_reason}\n\nPor favor revisa y vuelve a enviar.",
             ],
-            // Variables: {task_title}, {user_name}, {days_remaining}, {due_date}
-            [
-                'slug'    => 'task_reminder',
-                'name'    => 'Recordatorio de tarea próxima a vencer',
-                'subject' => 'Recordatorio: La tarea "{task_title}" vence pronto',
-                'body'    => "La tarea \"{task_title}\" vence en {days_remaining} día(s).\n\nFecha límite: {due_date}\n\nAsegúrate de completarla a tiempo.",
-            ],
             // Variables: {task_title}, {user_name}, {days_overdue}, {due_date}
             [
                 'slug'    => 'task_overdue',
@@ -83,13 +76,6 @@ class MessageTemplateSeeder extends Seeder
                 'name'    => 'Tarea reabierta',
                 'subject' => 'Tarea reabierta: {task_title}',
                 'body'    => "La tarea \"{task_title}\" ha sido reabierta por {reopened_by}.\n\nNota: {note}",
-            ],
-            // Variables: {user_name}, {date}, {summary_content}
-            [
-                'slug'    => 'daily_summary',
-                'name'    => 'Resumen diario de tareas',
-                'subject' => 'Resumen diario de tareas — {date}',
-                'body'    => "{summary_content}",
             ],
             // Variables: {user_name}, {inactivity_days}, {task_list}
             [

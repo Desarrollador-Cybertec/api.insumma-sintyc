@@ -26,20 +26,6 @@ class SystemConfigSeeder extends Seeder
                 'description' => 'Activar/desactivar envío de correos automáticos',
             ],
             [
-                'key' => 'daily_summary_enabled',
-                'value' => '1',
-                'type' => 'boolean',
-                'group' => 'notifications',
-                'description' => 'Activar/desactivar resumen diario de tareas',
-            ],
-            [
-                'key' => 'alert_days_before_due',
-                'value' => '3',
-                'type' => 'integer',
-                'group' => 'notifications',
-                'description' => 'Días antes del vencimiento para enviar alertas',
-            ],
-            [
                 'key' => 'alert_on_due_date',
                 'value' => '1',
                 'type' => 'boolean',
@@ -69,27 +55,6 @@ class SystemConfigSeeder extends Seeder
             ],
 
             // Automation group
-            [
-                'key' => 'daily_summary_time',
-                'value' => '07:00',
-                'type' => 'string',
-                'group' => 'automation',
-                'description' => 'Hora de envío del resumen diario (HH:MM)',
-            ],
-            [
-                'key' => 'send_reminders_enabled',
-                'value' => '1',
-                'type' => 'boolean',
-                'group' => 'automation',
-                'description' => 'Activar envío automático de recordatorios',
-            ],
-            [
-                'key' => 'send_reminders_time',
-                'value' => '08:00',
-                'type' => 'string',
-                'group' => 'automation',
-                'description' => 'Hora de envío de recordatorios (HH:MM)',
-            ],
         ];
 
         foreach ($settings as $setting) {
@@ -110,12 +75,6 @@ class SystemConfigSeeder extends Seeder
                 'body' => "Se te ha asignado la tarea \"{task_title}\".\n\nPrioridad: {priority}\nFecha límite: {due_date}\n\nProcura realizarla antes de la fecha límite. Por favor revisa los detalles en la plataforma.",
             ],
             [
-                'slug' => 'task_reminder',
-                'name' => 'Recordatorio de tarea próxima a vencer',
-                'subject' => 'Recordatorio: La tarea "{task_title}" vence {due_phrase}',
-                'body' => "La tarea \"{task_title}\" vence {due_phrase}.\n\nFecha límite: {due_date}\n\nAsegúrate de atenderla hoy.",
-            ],
-            [
                 'slug' => 'task_delegated',
                 'name' => 'Tarea delegada',
                 'subject' => 'Tarea delegada: {task_title}',
@@ -132,12 +91,6 @@ class SystemConfigSeeder extends Seeder
                 'name' => 'Tarea rechazada',
                 'subject' => 'Tu tarea "{task_title}" necesita correcciones',
                 'body' => "La tarea \"{task_title}\" ha sido rechazada y requiere correcciones.\n\nMotivo: {rejection_reason}\n\nPor favor revisa y vuelve a enviar.",
-            ],
-            [
-                'slug' => 'daily_summary',
-                'name' => 'Resumen diario de tareas',
-                'subject' => 'Resumen diario de tareas - {date}',
-                'body' => "{summary_content}",
             ],
             [
                 'slug' => 'task_cancelled',

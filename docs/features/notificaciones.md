@@ -10,41 +10,20 @@ Las notificaciones se envían a través de 3 canales configurables:
 | `mail` | Envía email via SMTP | `emails_enabled` |
 | `broadcast` | Tiempo real via WebSocket (Reverb/Pusher) | `broadcast_enabled` |
 
+Todas las notificaciones son disparadas por una **acción real de un usuario** sobre una tarea (asignación o cambio de estado). No existen correos periódicos ni recordatorios programados: el sistema ya no ejecuta ningún cron de notificaciones.
+
 ---
 
-## 16 Tipos de Notificación
+## Las 4 Notificaciones Activas
 
-### Asignación y Delegación
 | Clase | Cuándo se envía | Destinatario |
 |-------|-----------------|-------------|
-| `TaskAssignedNotification` | Tarea asignada a usuario | Usuario asignado |
-| `TaskDelegatedNotification` | Tarea delegada | Nuevo responsable |
+| `TaskAssignedNotification` | Se asigna una tarea a un usuario | Usuario asignado (y manager del área si `copy_to_manager` está activo) |
+| `TaskSubmittedForReviewNotification` | El responsable envía la tarea a revisión | Quien debe aprobarla: `delegated_by` → `assigned_by` → `created_by` (en ese orden de prioridad) |
+| `TaskApprovedNotification` | El aprobador marca la tarea como completada (requería aprobación) | Responsable de la tarea |
+| `TaskCompletedNotification` | El propio responsable completa la tarea sin requerir aprobación | Manager del área (tarea organizacional) o creador (tarea personal, sin área) |
 
-### Ciclo de Vida
-| Clase | Cuándo se envía | Destinatario |
-|-------|-----------------|-------------|
-| `TaskStartedNotification` | Tarea iniciada | Manager del área |
-| `TaskSubmittedForReviewNotification` | Enviada a revisión | Manager del área |
-| `TaskCompletedNotification` | Tarea completada | Creador y manager |
-| `TaskApprovedNotification` | Tarea aprobada | Responsable |
-| `TaskRejectedNotification` | Tarea rechazada | Responsable |
-| `TaskCancelledNotification` | Tarea cancelada | Responsable y creador |
-| `TaskReopenedNotification` | Tarea reabierta | Responsable |
-
-### Contenido
-| Clase | Cuándo se envía | Destinatario |
-|-------|-----------------|-------------|
-| `TaskCommentAddedNotification` | Nuevo comentario | Involucrados en la tarea |
-| `TaskAttachmentAddedNotification` | Nuevo adjunto | Involucrados en la tarea |
-| `TaskUpdateAddedNotification` | Nueva actualización de avance | Manager del área |
-
-### Alertas Automáticas
-| Clase | Cuándo se envía | Destinatario |
-|-------|-----------------|-------------|
-| `TaskDueSoonNotification` | Próxima a vencer (N días) | Responsable |
-| `TaskOverdueNotification` | Tarea vencida | Responsable |
-| `TaskInactivityNotification` | Sin actividad por N días | Responsable |
-| `DailyTaskSummaryNotification` | Resumen diario (cron) | Todos los usuarios con tareas |
+Todas implementan `ShouldQueue` y usan `NotificationSettingsService::resolveChannels()` para decidir por qué canales enviarse.
 
 ---
 
@@ -52,12 +31,12 @@ Las notificaciones se envían a través de 3 canales configurables:
 
 | Evento | Listener | Acción |
 |--------|----------|--------|
-| `TaskAssigned` | `SendTaskAssignedNotification` | Notifica al asignado |
-| `TaskDelegated` | `SendTaskDelegatedNotification` | Notifica al nuevo responsable |
-| `TaskStatusChanged` | `SendTaskStatusNotification` | Notifica según el cambio de estado |
-| `TaskCommentAdded` | `SendTaskCommentNotification` | Notifica al responsable/creador |
-| `TaskAttachmentAdded` | `SendTaskAttachmentNotification` | Notifica al responsable/creador |
-| `TaskUpdateAdded` | `SendTaskUpdateNotification` | Notifica al manager |
+| `TaskAssigned` | `App\Listeners\SendTaskAssignedNotification` | Notifica al usuario asignado (y opcionalmente al manager del área) con `TaskAssignedNotification`. No notifica autoasignación. |
+| `TaskStatusChanged` | `App\Listeners\SendTaskStatusNotification` | Según el estado destino: `in_review` → `TaskSubmittedForReviewNotification`; `completed` → `TaskApprovedNotification` (si lo completó alguien distinto al responsable) o `TaskCompletedNotification` (si el propio responsable la autocompletó). |
+
+Ambos listeners implementan `ShouldQueue` con `$afterCommit = true`, para que un fallo de envío de correo nunca revierta la transacción de la tarea.
+
+Estos son los **únicos** listeners que disparan notificaciones automáticas del sistema. No hay comandos programados (`Schedule`) ni endpoints manuales de disparo — toda notificación nace de una acción real sobre una tarea.
 
 ---
 
@@ -70,6 +49,8 @@ Slug: task_assigned
 Subject: Se te ha asignado una nueva tarea
 Body: Hola {user_name}, se te ha asignado la tarea "{task_title}" con prioridad {priority}.
 ```
+
+Slugs relevantes: `new_assignment`, `task_submitted_review`, `task_approved`, `task_completed`.
 
 **Variables disponibles:** `{user_name}`, `{task_title}`, `{task_id}`, `{priority}`, `{due_date}`, `{area_name}`, `{status}`, `{comment}`
 
@@ -85,14 +66,10 @@ Si no hay plantilla activa, se usa un texto fallback hardcodeado.
 |-------|------|---------|-------------|
 | `emails_enabled` | boolean | true | Activar envío de emails |
 | `broadcast_enabled` | boolean | false | Activar broadcast WebSocket |
-| `daily_summary_enabled` | boolean | true | Activar resumen diario |
-| `detect_overdue_enabled` | boolean | true | Activar detección de vencidas |
-| `send_reminders_enabled` | boolean | true | Activar recordatorios |
-| `inactivity_alert_enabled` | boolean | true | Activar alertas de inactividad |
-| `alert_days_before_due` | integer | 3 | Días antes del vencimiento para alertar |
-| `inactivity_alert_days` | integer | 7 | Días sin actividad para alertar |
 | `copy_to_manager` | boolean | true | Copiar notificaciones al manager |
 | `copy_to_superadmin` | boolean | false | Copiar notificaciones al superadmin |
+
+Las claves asociadas a los correos periódicos retirados (resumen diario, recordatorio de vencimiento, y las de detección de vencidas/inactividad retiradas previamente) están en `SystemSetting::RETIRED_KEYS` y ya no aparecen en la API de settings, aunque puedan seguir existiendo como filas históricas en la base de datos.
 
 ---
 
@@ -128,9 +105,8 @@ Response: { message: "Todas las notificaciones marcadas como leídas." }
 
 | Categoría | Tipos |
 |-----------|-------|
-| `organizational` | Asignación, delegación, cambios de estado de área |
-| `personal` | Vencimiento, inactividad, aprobación/rechazo personal |
-| `summary` | Resumen diario |
+| `organizational` | Asignación, cambios de estado de tareas de área |
+| `personal` | Asignación, aprobación/finalización de tareas sin área |
 
 ---
 

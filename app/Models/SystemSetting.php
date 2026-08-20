@@ -13,6 +13,11 @@ class SystemSetting extends Model
         'inactivity_alert_enabled',
         'inactivity_alert_days',
         'inactivity_alert_time',
+        'daily_summary_enabled',
+        'daily_summary_time',
+        'send_reminders_enabled',
+        'send_reminders_time',
+        'alert_days_before_due',
     ];
 
     protected $fillable = [

@@ -24,40 +24,6 @@ class NotificationSettingsService
         return SystemSetting::getValue('broadcast_enabled', false);
     }
 
-    // ── Feature toggles ───────────────────────────
-
-    public function isDailySummaryEnabled(): bool
-    {
-        return SystemSetting::getValue('daily_summary_enabled', true);
-    }
-
-    public function isOverdueDetectionEnabled(): bool
-    {
-        return SystemSetting::getValue('detect_overdue_enabled', true);
-    }
-
-    public function isRemindersEnabled(): bool
-    {
-        return SystemSetting::getValue('send_reminders_enabled', true);
-    }
-
-    public function isInactivityAlertEnabled(): bool
-    {
-        return SystemSetting::getValue('inactivity_alert_enabled', true);
-    }
-
-    // ── Parameters ────────────────────────────────
-
-    public function getDueSoonDays(): int
-    {
-        return SystemSetting::getValue('alert_days_before_due', 3);
-    }
-
-    public function getInactivityDays(): int
-    {
-        return SystemSetting::getValue('inactivity_alert_days', 7);
-    }
-
     // ── Copy rules ────────────────────────────────
 
     public function shouldCopyManager(): bool

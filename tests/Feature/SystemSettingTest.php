@@ -45,11 +45,11 @@ class SystemSettingTest extends TestCase
         ]);
 
         SystemSetting::create([
-            'key' => 'alert_days_before_due',
+            'key' => 'sample_integer_setting',
             'value' => '3',
             'type' => 'integer',
             'group' => 'notifications',
-            'description' => 'Días antes',
+            'description' => 'Ajuste de ejemplo (integer) para pruebas genéricas',
         ]);
 
         SystemSetting::create([
@@ -97,14 +97,14 @@ class SystemSettingTest extends TestCase
         $response = $this->actingAs($this->admin)->putJson('/api/settings', [
             'settings' => [
                 ['key' => 'emails_enabled', 'value' => '0'],
-                ['key' => 'alert_days_before_due', 'value' => '5'],
+                ['key' => 'sample_integer_setting', 'value' => '5'],
             ],
         ]);
 
         $response->assertOk();
 
         $this->assertFalse(SystemSetting::getValue('emails_enabled'));
-        $this->assertEquals(5, SystemSetting::getValue('alert_days_before_due'));
+        $this->assertEquals(5, SystemSetting::getValue('sample_integer_setting'));
     }
 
     public function test_update_rejects_invalid_key(): void
@@ -135,8 +135,8 @@ class SystemSettingTest extends TestCase
     {
         $this->assertTrue(SystemSetting::getValue('emails_enabled'));
         $this->assertIsBool(SystemSetting::getValue('emails_enabled'));
-        $this->assertIsInt(SystemSetting::getValue('alert_days_before_due'));
-        $this->assertEquals(3, SystemSetting::getValue('alert_days_before_due'));
+        $this->assertIsInt(SystemSetting::getValue('sample_integer_setting'));
+        $this->assertEquals(3, SystemSetting::getValue('sample_integer_setting'));
     }
 
     public function test_get_value_returns_default_when_not_found(): void
@@ -158,7 +158,7 @@ class SystemSettingTest extends TestCase
         $group = SystemSetting::getGroup('notifications');
 
         $this->assertArrayHasKey('emails_enabled', $group);
-        $this->assertArrayHasKey('alert_days_before_due', $group);
+        $this->assertArrayHasKey('sample_integer_setting', $group);
         $this->assertArrayNotHasKey('detect_overdue_time', $group);
     }
 

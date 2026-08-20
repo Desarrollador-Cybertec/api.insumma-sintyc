@@ -4,6 +4,17 @@ Historial de cambios del sistema TAPE.
 
 ---
 
+## 2026-08-20 — Eliminación de Correos Automáticos Periódicos
+
+### Cambios
+- Se eliminaron los correos periódicos de **resumen diario** (`tasks:send-daily-summary`) y **recordatorio de tarea próxima a vencer** (`tasks:send-due-reminders`), junto con sus comandos programados en el scheduler y sus endpoints de disparo manual (`POST /api/automation/send-summary`, `POST /api/automation/send-reminders`).
+- Se retiraron las notificaciones `DailyTaskSummaryNotification` y `TaskDueSoonNotification`, el `AutomationController`, y las plantillas de mensaje `task_reminder` y `daily_summary`.
+- Se retiraron de `system_settings` (vía `SystemSetting::RETIRED_KEYS`) las claves `daily_summary_enabled`, `daily_summary_time`, `send_reminders_enabled`, `send_reminders_time` y `alert_days_before_due`.
+- **Se mantienen únicamente las 4 notificaciones que dependen de una acción real sobre una tarea**: `TaskAssignedNotification`, `TaskSubmittedForReviewNotification`, `TaskApprovedNotification` y `TaskCompletedNotification`, disparadas por los listeners `SendTaskAssignedNotification` y `SendTaskStatusNotification` sobre los eventos `TaskAssigned`/`TaskStatusChanged`.
+- Motivo: reducir el ruido de correos automáticos no solicitados por una acción del usuario, conservando solo las notificaciones que comunican cambios reales de estado de una tarea.
+
+---
+
 ## 2026-04-09 — Íconos de Área
 
 ### Cambios
